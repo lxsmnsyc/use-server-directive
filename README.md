@@ -23,6 +23,11 @@ pnpm add use-server-directive
 - Advanced serialization
 - Closure extraction
 - Streaming server functions
+- Customizable directive
+
+## Integrations
+
+- [Unplugin](https://github.com/lxsmnsyc/use-server-directive/tree/main/packages/unplugin)
 
 ## Sponsors
 
