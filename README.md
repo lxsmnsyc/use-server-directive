@@ -18,6 +18,12 @@ yarn add use-server-directive
 pnpm add use-server-directive
 ```
 
+## Features
+
+- Advanced serialization
+- Closure extraction
+- Streaming server functions
+
 ## Sponsors
 
 ![Sponsors](https://github.com/lxsmnsyc/sponsors/blob/main/sponsors.svg?raw=true)
