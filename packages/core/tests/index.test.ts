@@ -281,3 +281,63 @@ describe('FunctionDeclaration', () => {
     });
   });
 });
+describe('ExportDefaultDeclaration', () => {
+  describe('client', () => {
+    it('should transform valid server functions', async () => {
+      const code = `
+      export default async function example() {
+        'use server';
+        return 'foo bar';
+      }
+      `;
+      expect((await compiler.compile(ID, code, CLIENT)).code).toMatchSnapshot();
+    });
+    it('should skip non-async server functions', async () => {
+      const code = `
+      export default function example() {
+        'use server';
+        return 'foo bar';
+      }
+      `;
+      expect((await compiler.compile(ID, code, CLIENT)).code).toMatchSnapshot();
+    });
+    it('should transform unnamed server functions', async () => {
+      const code = `
+      export default async function () {
+        'use server';
+        return 'foo bar';
+      }
+      `;
+      expect((await compiler.compile(ID, code, CLIENT)).code).toMatchSnapshot();
+    });
+  });
+  describe('server', () => {
+    it('should transform valid server functions', async () => {
+      const code = `
+      export default async function example() {
+        'use server';
+        return 'foo bar';
+      }
+      `;
+      expect((await compiler.compile(ID, code, SERVER)).code).toMatchSnapshot();
+    });
+    it('should skip non-async server functions', async () => {
+      const code = `
+      export default function example() {
+        'use server';
+        return 'foo bar';
+      }
+      `;
+      expect((await compiler.compile(ID, code, SERVER)).code).toMatchSnapshot();
+    });
+    it('should transform unnamed server functions', async () => {
+      const code = `
+      export default async function () {
+        'use server';
+        return 'foo bar';
+      }
+      `;
+      expect((await compiler.compile(ID, code, SERVER)).code).toMatchSnapshot();
+    });
+  });
+});
