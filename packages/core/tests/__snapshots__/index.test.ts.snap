@@ -84,6 +84,90 @@ const outer = () => {
 };"
 `;
 
+exports[`FunctionDeclaration > client > should skip non-async server functions 1`] = `
+"function example() {
+  'use server';
+
+  return 'foo bar';
+}"
+`;
+
+exports[`FunctionDeclaration > client > should skip top-level values for scope 1`] = `
+"import { $$clone as _$$clone } from \\"use-server-directive/client\\";
+import { $$server as _$$server } from \\"use-server-directive/client\\";
+const value = 'foo bar';
+const _server = _$$server(\\"/__server/bb5fd6ee-example-0-example\\");
+const outer = () => {
+  var example = _$$clone(_server, () => []);
+};"
+`;
+
+exports[`FunctionDeclaration > client > should transform valid server functions 1`] = `
+"import { $$clone as _$$clone } from \\"use-server-directive/client\\";
+import { $$server as _$$server } from \\"use-server-directive/client\\";
+const _server = _$$server(\\"/__server/bb5fd6ee-example-0-example\\");
+var example = _$$clone(_server, () => []);"
+`;
+
+exports[`FunctionDeclaration > client > should transform valid server functions with scope 1`] = `
+"import { $$clone as _$$clone } from \\"use-server-directive/client\\";
+import { $$server as _$$server } from \\"use-server-directive/client\\";
+const _server = _$$server(\\"/__server/bb5fd6ee-example-0-example\\");
+const outer = () => {
+  const value = 'foo bar';
+  var example = _$$clone(_server, () => [value]);
+};"
+`;
+
+exports[`FunctionDeclaration > server > should skip non-async server functions 1`] = `
+"function example() {
+  'use server';
+
+  return 'foo bar';
+}"
+`;
+
+exports[`FunctionDeclaration > server > should skip top-level values for scope 1`] = `
+"import { $$clone as _$$clone } from \\"use-server-directive/server\\";
+import { $$server as _$$server } from \\"use-server-directive/server\\";
+const value = 'foo bar';
+const _server = _$$server(\\"/__server/bb5fd6ee-example-0-example\\", /*@skip use-server-directive*/async function example() {
+  'use server';
+
+  return value;
+});
+const outer = () => {
+  var example = _$$clone(_server, () => []);
+};"
+`;
+
+exports[`FunctionDeclaration > server > should transform valid server functions 1`] = `
+"import { $$clone as _$$clone } from \\"use-server-directive/server\\";
+import { $$server as _$$server } from \\"use-server-directive/server\\";
+const _server = _$$server(\\"/__server/bb5fd6ee-example-0-example\\", /*@skip use-server-directive*/async function example() {
+  'use server';
+
+  return 'foo bar';
+});
+var example = _$$clone(_server, () => []);"
+`;
+
+exports[`FunctionDeclaration > server > should transform valid server functions with scope 1`] = `
+"import { $$clone as _$$clone } from \\"use-server-directive/server\\";
+import { $$server as _$$server } from \\"use-server-directive/server\\";
+import { $$scope as _$$scope } from \\"use-server-directive/server\\";
+const _server = _$$server(\\"/__server/bb5fd6ee-example-0-example\\", /*@skip use-server-directive*/async function example() {
+  'use server';
+
+  const [value] = _$$scope();
+  return value;
+});
+const outer = () => {
+  const value = 'foo bar';
+  var example = _$$clone(_server, () => [value]);
+};"
+`;
+
 exports[`FunctionExpression > client > should skip non-async server functions 1`] = `
 "const example = function () {
   'use server';
