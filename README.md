@@ -29,6 +29,10 @@ pnpm add use-server-directive
 
 - [Unplugin](https://github.com/lxsmnsyc/use-server-directive/tree/main/packages/unplugin)
 
+## Examples
+
+- [Astro](https://github.com/lxsmnsyc/use-server-directive/tree/main/examples/astro)
+
 ## Sponsors
 
 ![Sponsors](https://github.com/lxsmnsyc/sponsors/blob/main/sponsors.svg?raw=true)
