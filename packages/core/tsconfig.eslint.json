@@ -1,6 +1,6 @@
 {
   "exclude": ["node_modules"],
-  "include": ["compiler", "client", "server", "shared"],
+  "include": ["compiler", "client", "server", "shared", "tests"],
   "compilerOptions": {
     "module": "ESNext",
     "lib": ["ESNext", "DOM"],
