@@ -32,6 +32,7 @@ pnpm add use-server-directive
 ## Examples
 
 - [Astro](https://github.com/lxsmnsyc/use-server-directive/tree/main/examples/astro)
+- [SvelteKit](https://github.com/lxsmnsyc/use-server-directive/tree/main/examples/sveltekit)
 
 ## Sponsors
 
