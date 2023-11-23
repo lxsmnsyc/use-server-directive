@@ -106,6 +106,7 @@ async function handler<T extends unknown[], R>(
       headers: {
         'X-Use-Server-Directive': instance,
       },
+      method: 'POST',
       body: await serializeFunctionBody({
         scope: scope(),
         args,

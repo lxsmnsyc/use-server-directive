@@ -25,7 +25,7 @@ function serializeToStream<T>(instance: string, value: T): ReadableStream {
         scopeId: instance,
         onSerialize(data, initial) {
           const result = initial
-            ? `((self.$R=self.$R||{})["${instance}"]=[],${data});`
+            ? `((self.$R=self.$R||{})["${instance}"]=[],${data})`
             : data;
           controller.enqueue(
             new TextEncoder().encode(`${result};\n`),
