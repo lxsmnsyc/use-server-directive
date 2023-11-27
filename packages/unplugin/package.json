@@ -1,5 +1,5 @@
 {
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "types": "./dist/types/index.d.ts",
   "main": "./dist/cjs/production/index.cjs",
@@ -35,7 +35,7 @@
     "pridepack": "2.5.1",
     "tslib": "^2.6.2",
     "typescript": "^5.3.2",
-    "use-server-directive": "0.1.1"
+    "use-server-directive": "0.1.2"
   },
   "peerDependencies": {
     "use-server-directive": ">=0.0.0"
