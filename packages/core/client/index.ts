@@ -1,8 +1,23 @@
+import { deserialize, toJSONAsync } from 'seroval';
 import {
-  deserialize,
-  toJSONAsync,
-} from 'seroval';
-import type { FunctionBody } from '../shared/utils';
+  BlobPlugin,
+  CustomEventPlugin,
+  DOMExceptionPlugin,
+  EventPlugin,
+  FilePlugin,
+  FormDataPlugin,
+  HeadersPlugin,
+  ReadableStreamPlugin,
+  RequestPlugin,
+  ResponsePlugin,
+  URLPlugin,
+  URLSearchParamsPlugin,
+} from 'seroval-plugins/web';
+import {
+  USE_SERVER_DIRECTIVE_INDEX_HEADER,
+  type FunctionBody,
+  USE_SERVER_DIRECTIVE_ID_HEADER,
+} from '../shared/utils';
 
 interface HandlerRegistrationResult {
   id: string;
@@ -22,10 +37,7 @@ export function interceptRequest(callback: Interceptor): void {
   INTERCEPTORS.push(callback);
 }
 
-async function serverHandler(
-  id: string,
-  init: RequestInit,
-): Promise<Response> {
+async function serverHandler(id: string, init: RequestInit): Promise<Response> {
   let root = new Request(id, init);
   for (const intercept of INTERCEPTORS) {
     // eslint-disable-next-line no-await-in-loop
@@ -37,7 +49,15 @@ async function serverHandler(
 
 declare const $R: Record<string, unknown>;
 
-async function deserializeStream<T>(instance: string, response: Response): Promise<T> {
+async function deserializeResponse<T>(
+  id: string,
+  response: Response,
+): Promise<T> {
+  const instance = response.headers.get(USE_SERVER_DIRECTIVE_INDEX_HEADER);
+  const target = response.headers.get(USE_SERVER_DIRECTIVE_ID_HEADER);
+  if (!instance || target !== id) {
+    throw new Error(`Invalid response for ${id}.`);
+  }
   if (!response.body) {
     throw new Error('missing body');
   }
@@ -75,31 +95,43 @@ async function deserializeStream<T>(instance: string, response: Response): Promi
     }
   }
 
-  pop().then(() => {
-    delete $R[instance];
-  }, () => {
-    // no-op
-  });
+  pop().then(
+    () => {
+      delete $R[instance];
+    },
+    () => {
+      // no-op
+    },
+  );
 
-  return revived as T;
-}
-
-async function deserializeResponse<R>(
-  id: string,
-  instance: string,
-  response: Response,
-): Promise<R> {
   if (response.ok) {
-    return deserializeStream(instance, response);
+    return revived as T;
   }
   if (import.meta.env.DEV) {
-    throw deserializeStream(instance, response);
+    throw revived;
   }
   throw new Error(`function "${id}" threw an unhandled server-side error.`);
 }
 
 async function serializeFunctionBody(body: FunctionBody): Promise<string> {
-  return JSON.stringify(await toJSONAsync(body));
+  return JSON.stringify(
+    await toJSONAsync(body, {
+      plugins: [
+        BlobPlugin,
+        CustomEventPlugin,
+        DOMExceptionPlugin,
+        EventPlugin,
+        FilePlugin,
+        FormDataPlugin,
+        HeadersPlugin,
+        ReadableStreamPlugin,
+        RequestPlugin,
+        ResponsePlugin,
+        URLSearchParamsPlugin,
+        URLPlugin,
+      ],
+    }),
+  );
 }
 
 let INSTANCE = 0;
@@ -109,13 +141,12 @@ async function handler<T extends unknown[], R>(
   scope: () => unknown[],
   ...args: T
 ): Promise<R> {
-  const instance = `use-server-directive:${INSTANCE++}`;
   return deserializeResponse(
     id,
-    instance,
     await serverHandler(id, {
       headers: {
-        'X-Use-Server-Directive': instance,
+        [USE_SERVER_DIRECTIVE_INDEX_HEADER]: `use-server-directive:${INSTANCE++}`,
+        [USE_SERVER_DIRECTIVE_ID_HEADER]: id,
       },
       method: 'POST',
       body: await serializeFunctionBody({

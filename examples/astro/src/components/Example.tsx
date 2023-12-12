@@ -35,7 +35,7 @@ function Inner(): JSX.Element {
     const immediate = `${prefix}: ${value}`;
     return {
       immediate,
-      delayed: sleep(immediate, 1000),
+      delayed: sleep(immediate, 5000),
     };
   }
 
@@ -47,7 +47,7 @@ function Inner(): JSX.Element {
 
   return (
     <>
-      <button onClick={increment}>
+      <button type="button" onClick={increment}>
         {`Client Count: ${state()}`}
       </button>
       <div>
