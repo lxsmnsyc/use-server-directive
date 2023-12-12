@@ -17,22 +17,22 @@ declare module '@babel/helper-module-imports' {
   export function addDefault(
     path: NodePath,
     importedSource: string,
-    opts?: Partial<ImportOptions>
+    opts?: Partial<ImportOptions>,
   ): t.Identifier;
   export function addNamed(
     path: NodePath,
     name: string,
     importedSource: string,
-    opts?: Partial<ImportOptions>
+    opts?: Partial<ImportOptions>,
   ): t.Identifier;
   export function addNamespace(
     path: NodePath,
     importedSource: string,
-    opts?: Partial<ImportOptions>
+    opts?: Partial<ImportOptions>,
   ): t.Identifier;
   export function addSideEffect(
     path: NodePath,
     importedSource: string,
-    opts?: Partial<ImportOptions>
+    opts?: Partial<ImportOptions>,
   ): t.Identifier;
 }

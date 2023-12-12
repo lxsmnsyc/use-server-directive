@@ -8,11 +8,11 @@ const example = async function () {
 }
 `;
 
-console.log((await compile(
-  'example.ts',
-  code,
-  {
-    directive: 'use server',
-    mode: 'server',
-  },
-)).code);
+console.log(
+  (
+    await compile('example.ts', code, {
+      directive: 'use server',
+      mode: 'server',
+    })
+  ).code,
+);

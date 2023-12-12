@@ -32,15 +32,18 @@ function isInTypescript(path: babel.NodePath): boolean {
   return false;
 }
 
-export default function getForeignBindings(path: babel.NodePath): t.Identifier[] {
+export default function getForeignBindings(
+  path: babel.NodePath,
+): t.Identifier[] {
   const identifiers = new Set<string>();
   path.traverse({
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: side-effects
     Expression(p) {
       // Check identifiers that aren't in a TS expression
       if (
-        t.isIdentifier(p.node)
-        && !isInTypescript(p)
-        && isForeignBinding(path, p, p.node.name)
+        t.isIdentifier(p.node) &&
+        !isInTypescript(p) &&
+        isForeignBinding(path, p, p.node.name)
       ) {
         identifiers.add(p.node.name);
       }
@@ -48,7 +51,8 @@ export default function getForeignBindings(path: babel.NodePath): t.Identifier[]
       // as a foreign binding
       if (t.isJSXElement(p.node)) {
         if (t.isJSXMemberExpression(p.node.openingElement.name)) {
-          let base: t.JSXMemberExpression | t.JSXIdentifier = p.node.openingElement.name;
+          let base: t.JSXMemberExpression | t.JSXIdentifier =
+            p.node.openingElement.name;
           while (t.isJSXMemberExpression(base)) {
             base = base.object;
           }
@@ -89,10 +93,8 @@ export default function getForeignBindings(path: babel.NodePath): t.Identifier[]
           if (blockParent !== programParent) {
             result.push(t.identifier(identifier));
           }
+          break;
         }
-          break;
-        default:
-          break;
       }
     }
   }

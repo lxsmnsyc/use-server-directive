@@ -5,7 +5,11 @@ import { addNamed } from '@babel/helper-module-imports';
 import assert from './assert';
 import getForeignBindings from './get-foreign-bindings';
 import xxHash32 from './xxhash32';
-import { HIDDEN_CLONE, HIDDEN_SERVER_FUNCTION, HIDDEN_USE_SCOPE } from './constants';
+import {
+  HIDDEN_CLONE,
+  HIDDEN_SERVER_FUNCTION,
+  HIDDEN_USE_SCOPE,
+} from './constants';
 
 export interface Options {
   directive: string;
@@ -44,18 +48,18 @@ function getDescriptiveName(path: babel.NodePath): string {
   while (current) {
     switch (current.node.type) {
       case 'FunctionDeclaration':
-      case 'FunctionExpression':
+      case 'FunctionExpression': {
         if (current.node.id) {
           return current.node.id.name;
         }
         break;
-      case 'VariableDeclarator':
+      }
+      case 'VariableDeclarator': {
         if (current.node.id.type === 'Identifier') {
           return current.node.id.name;
         }
         break;
-      default:
-        break;
+      }
     }
     current = current.parentPath;
   }
@@ -112,29 +116,24 @@ function getRootStatementPath(path: babel.NodePath): babel.NodePath {
   return path;
 }
 
-function convertServerFunction(
-  node: ServerFunctionExpression,
-): t.Expression {
+function convertServerFunction(node: ServerFunctionExpression): t.Expression {
   return t.addComment(
     node.type === 'ArrowFunctionExpression'
-      ? t.arrowFunctionExpression(
-        node.params,
-        node.body,
-        node.async,
-      )
+      ? t.arrowFunctionExpression(node.params, node.body, node.async)
       : t.functionExpression(
-        node.id,
-        node.params,
-        node.body,
-        node.generator,
-        node.async,
-      ),
+          node.id,
+          node.params,
+          node.body,
+          node.generator,
+          node.async,
+        ),
     'leading',
     SKIP_MARKER,
     false,
   );
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
 function transformFunction(
   ctx: StateContext,
   path: babel.NodePath<ServerFunctionExpression>,
@@ -151,24 +150,22 @@ function transformFunction(
       if (ctx.options.mode === 'server') {
         const statement = t.isStatement(path.node.body)
           ? path.node.body
-          : t.blockStatement([
-            t.returnStatement(path.node.body),
-          ]);
+          : t.blockStatement([t.returnStatement(path.node.body)]);
         statement.body = [
-          t.variableDeclaration(
-            'const',
-            [
-              t.variableDeclarator(
-                t.arrayPattern(scope),
-                t.callExpression(getImportIdentifier(
+          t.variableDeclaration('const', [
+            t.variableDeclarator(
+              t.arrayPattern(scope),
+              t.callExpression(
+                getImportIdentifier(
                   ctx,
                   path,
                   `use-server-directive/${ctx.options.mode}`,
                   HIDDEN_USE_SCOPE,
-                ), []),
+                ),
+                [],
               ),
-            ],
-          ),
+            ),
+          ]),
           ...statement.body,
         ];
 
@@ -199,10 +196,9 @@ function transformFunction(
     const rootStatement = getRootStatementPath(path);
     // Push the declaration
     rootStatement.insertBefore(
-      t.variableDeclaration(
-        'const',
-        [t.variableDeclarator(registerID, register)],
-      ),
+      t.variableDeclaration('const', [
+        t.variableDeclarator(registerID, register),
+      ]),
     );
     // Replace with clone
     const replacement = t.callExpression(
@@ -215,13 +211,11 @@ function transformFunction(
       cloneArgs,
     );
     if (path.node.type === 'FunctionDeclaration') {
-      const declarationID = path.node.id || path.scope.generateUidIdentifier('fn');
-      const declaration = t.variableDeclaration(
-        'var',
-        [
-          t.variableDeclarator(declarationID, replacement),
-        ],
-      );
+      const declarationID =
+        path.node.id || path.scope.generateUidIdentifier('fn');
+      const declaration = t.variableDeclaration('var', [
+        t.variableDeclarator(declarationID, replacement),
+      ]);
       if (path.parentPath.isExportDefaultDeclaration()) {
         path.parentPath.insertBefore(declaration);
         path.replaceWith(declarationID);
@@ -229,9 +223,7 @@ function transformFunction(
         path.replaceWith(declaration);
       }
     } else {
-      path.replaceWith(
-        replacement,
-      );
+      path.replaceWith(replacement);
     }
   }
 }
@@ -259,10 +251,7 @@ function plugin(): babel.PluginObj<State> {
 
 const DEFAULT_PREFIX = '__server';
 
-function getPrefix(
-  id: string,
-  options: Options,
-): string {
+function getPrefix(id: string, options: Options): string {
   const prefix = options.prefix == null ? DEFAULT_PREFIX : options.prefix;
   const base = `/${prefix}/${xxHash32(id).toString(16)}-`;
   if (options.env === 'production') {
@@ -292,9 +281,7 @@ export async function compile(
   }
 
   const result = await babel.transformAsync(code, {
-    plugins: [
-      [plugin, ctx],
-    ],
+    plugins: [[plugin, ctx]],
     parserOpts: {
       plugins,
     },
