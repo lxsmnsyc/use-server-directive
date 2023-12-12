@@ -110,9 +110,26 @@ export async function handleRequest(
 ): Promise<Response | undefined> {
   const url = new URL(request.url);
   const registration = REGISTRATIONS.get(url.pathname);
-  const instance = request.headers.get('X-Use-Server-Directive');
+  const instance = request.headers.get(USE_SERVER_DIRECTIVE_INDEX_HEADER);
+  const target = request.headers.get(USE_SERVER_DIRECTIVE_ID_HEADER);
   if (registration && instance) {
     const [id, callback] = registration;
+    if (id !== target) {
+      return new Response(
+        serializeToStream(
+          instance,
+          new Error(`Invalid request for ${instance}`),
+        ),
+        {
+          headers: {
+            'Content-Type': 'text/javascript',
+            [USE_SERVER_DIRECTIVE_INDEX_HEADER]: instance,
+            [USE_SERVER_DIRECTIVE_ID_HEADER]: target || '',
+          },
+          status: 500,
+        },
+      );
+    }
     try {
       const { scope, args } = fromJSON<FunctionBody>(
         (await request.json()) as SerovalJSON,
