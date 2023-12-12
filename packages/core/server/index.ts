@@ -42,6 +42,18 @@ function serializeToStream<T>(instance: string, value: T): ReadableStream {
     start(controller): void {
       crossSerializeStream(value, {
         scopeId: instance,
+        plugins: [
+          CustomEventPlugin,
+          DOMExceptionPlugin,
+          EventPlugin,
+          FormDataPlugin,
+          HeadersPlugin,
+          ReadableStreamPlugin,
+          RequestPlugin,
+          ResponsePlugin,
+          URLSearchParamsPlugin,
+          URLPlugin,
+        ],
         onSerialize(data, initial) {
           const result = initial
             ? `((self.$R=self.$R||{})["${instance}"]=[],${data})`
