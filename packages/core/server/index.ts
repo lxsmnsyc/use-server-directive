@@ -1,5 +1,9 @@
 import type { SerovalJSON } from 'seroval';
-import { crossSerializeStream, fromJSON } from 'seroval';
+import {
+  crossSerializeStream,
+  fromJSON,
+  getCrossReferenceHeader,
+} from 'seroval';
 import {
   type FunctionBody,
   type ServerHandler,
@@ -56,7 +60,7 @@ function serializeToStream<T>(instance: string, value: T): ReadableStream {
         ],
         onSerialize(data, initial) {
           const result = initial
-            ? `((self.$R=self.$R||{})["${instance}"]=[],${data})`
+            ? `(${getCrossReferenceHeader(instance)},${data})`
             : data;
           controller.enqueue(new TextEncoder().encode(`${result};\n`));
         },
