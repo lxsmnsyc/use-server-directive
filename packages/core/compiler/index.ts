@@ -79,25 +79,20 @@ function shouldSkip(path: babel.NodePath<t.BlockStatement>): boolean {
 function getServerBlockModeFromDirectives(
   ctx: StateContext,
   path: babel.NodePath<t.BlockStatement>,
-  parent: babel.NodePath<t.Function> | null,
-): 'normal' | 'generator' | undefined {
+): boolean {
   for (let i = 0, len = path.node.directives.length; i < len; i++) {
     const statement = path.node.directives[i];
     if (statement.value.value === ctx.options.directive) {
-      if (parent?.node.generator) {
-        return 'generator';
-      }
-      return 'normal';
+      return true;
     }
   }
-  return undefined;
+  return false;
 }
 
 function getServerBlockModeFromFauxDirectives(
   ctx: StateContext,
   path: babel.NodePath<t.BlockStatement>,
-  parent: babel.NodePath<t.Function> | null,
-): 'normal' | 'generator' | undefined {
+): boolean {
   for (let i = 0, len = path.node.body.length; i < len; i++) {
     const statement = path.node.body[i];
     if (
@@ -105,32 +100,29 @@ function getServerBlockModeFromFauxDirectives(
       statement.expression.type === 'StringLiteral'
     ) {
       if (statement.expression.value === ctx.options.directive) {
-        if (parent?.node.generator) {
-          return 'generator';
-        }
-        return 'normal';
+        return true;
       }
     } else {
       break;
     }
   }
-  return undefined;
+  return false;
 }
 
-function getServerBlockMode(
+function isValidServerBlock(
   ctx: StateContext,
   path: babel.NodePath<t.BlockStatement>,
-): 'normal' | 'generator' | undefined {
+): boolean {
   if (shouldSkip(path)) {
-    return undefined;
+    return false;
   }
   const parent = path.getFunctionParent();
   if (parent && !parent.node.async) {
-    return undefined;
+    return false;
   }
   return (
-    getServerBlockModeFromDirectives(ctx, path, parent) ||
-    getServerBlockModeFromFauxDirectives(ctx, path, parent)
+    getServerBlockModeFromDirectives(ctx, path) ||
+    getServerBlockModeFromFauxDirectives(ctx, path)
   );
 }
 
@@ -164,6 +156,7 @@ function transformHalting(path: babel.NodePath<t.BlockStatement>): {
   breaks: string[] | undefined;
   continues: string[] | undefined;
   hasReturn: boolean;
+  hasYield: boolean;
 } {
   const target =
     path.scope.getFunctionParent() || path.scope.getProgramParent();
@@ -171,6 +164,7 @@ function transformHalting(path: babel.NodePath<t.BlockStatement>): {
   let breaks: string[] | undefined;
   let continues: string[] | undefined;
   let hasReturn = false;
+  let hasYield = false;
 
   const loopStack: boolean[] = [];
 
@@ -244,14 +238,21 @@ function transformHalting(path: babel.NodePath<t.BlockStatement>): {
         child.skip();
       }
     },
+    YieldExpression(child) {
+      const parent =
+        child.scope.getFunctionParent() || child.scope.getProgramParent();
+      if (parent === target) {
+        hasYield = true;
+      }
+    },
   });
 
   path.node.body.push(t.returnStatement(t.arrayExpression([NO_HALT_KEY])));
 
-  return { breaks, continues, hasReturn };
+  return { breaks, continues, hasReturn, hasYield };
 }
 
-function transformNormalServerBlock(
+function transformServerBlock(
   ctx: StateContext,
   path: babel.NodePath<t.BlockStatement>,
 ): void {
@@ -270,7 +271,13 @@ function transformNormalServerBlock(
   if (ctx.options.mode === 'server') {
     // Hoist the argument
     args.push(
-      t.arrowFunctionExpression(cloneArgs, convertServerBlock(path.node)),
+      t.functionExpression(
+        undefined,
+        cloneArgs,
+        convertServerBlock(path.node),
+        halting.hasYield,
+        true,
+      ),
     );
   }
   const register = t.callExpression(
@@ -331,28 +338,79 @@ function transformNormalServerBlock(
       check,
     );
   }
-  // Replace with clone
-  const replacement: t.Statement[] = [
-    t.variableDeclaration('const', [
-      t.variableDeclarator(
-        t.arrayPattern([returnType, returnResult]),
-        t.awaitExpression(t.callExpression(registerID, cloneArgs)),
+  if (halting.hasYield) {
+    const iterator = path.scope.generateUidIdentifier('iterator');
+    const step = path.scope.generateUidIdentifier('step');
+    const replacement: t.Statement[] = [
+      t.variableDeclaration('let', [
+        t.variableDeclarator(returnType),
+        t.variableDeclarator(returnResult),
+        t.variableDeclarator(
+          iterator,
+          t.awaitExpression(t.callExpression(registerID, cloneArgs)),
+        ),
+      ]),
+      t.whileStatement(
+        t.booleanLiteral(true),
+        t.blockStatement([
+          t.variableDeclaration('const', [
+            t.variableDeclarator(
+              step,
+              t.callExpression(
+                t.memberExpression(iterator, t.identifier('next')),
+                [],
+              ),
+            ),
+          ]),
+          t.ifStatement(
+            t.memberExpression(step, t.identifier('done')),
+            t.blockStatement([
+              t.expressionStatement(
+                t.assignmentExpression(
+                  '=',
+                  t.arrayPattern([returnType, returnResult]),
+                  t.memberExpression(step, t.identifier('value')),
+                ),
+              ),
+              t.breakStatement(),
+            ]),
+            t.blockStatement([
+              t.expressionStatement(
+                t.yieldExpression(
+                  t.memberExpression(step, t.identifier('value')),
+                ),
+              ),
+            ]),
+          ),
+        ]),
       ),
-    ]),
-  ];
-  if (check) {
-    replacement.push(check);
+    ];
+    if (check) {
+      replacement.push(check);
+    }
+    path.replaceWith(t.blockStatement(replacement));
+  } else {
+    const replacement: t.Statement[] = [
+      t.variableDeclaration('const', [
+        t.variableDeclarator(
+          t.arrayPattern([returnType, returnResult]),
+          t.awaitExpression(t.callExpression(registerID, cloneArgs)),
+        ),
+      ]),
+    ];
+    if (check) {
+      replacement.push(check);
+    }
+    path.replaceWith(t.blockStatement(replacement));
   }
-  path.replaceWith(t.blockStatement(replacement));
 }
 
 function transformBlock(
   ctx: StateContext,
   path: babel.NodePath<t.BlockStatement>,
 ): void {
-  const mode = getServerBlockMode(ctx, path);
-  if (mode === 'normal') {
-    transformNormalServerBlock(ctx, path);
+  if (isValidServerBlock(ctx, path)) {
+    transformServerBlock(ctx, path);
   }
 }
 

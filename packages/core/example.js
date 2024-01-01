@@ -1,24 +1,9 @@
 import { compile } from './dist/esm/development/compiler.mjs';
-
-const code = `
-async function example() {
-  example:
-  while (true) {
-    'use server';
-    const random = Math.random();
-    if (random > 0.75) {
-      return 'returned';
-    } else if (random > 0.5) {
-      break example;
-    }
-  }
-  return 'broken';
-}
-`;
+import fs from 'fs/promises';
 
 console.log(
   (
-    await compile('example.ts', code, {
+    await compile('input.ts', await fs.readFile('./input.js', 'utf-8'), {
       directive: 'use server',
       mode: 'server',
     })
