@@ -5,11 +5,7 @@ import { addNamed } from '@babel/helper-module-imports';
 import assert from './assert';
 import getForeignBindings from './get-foreign-bindings';
 import xxHash32 from './xxhash32';
-import {
-  HIDDEN_CLONE,
-  HIDDEN_SERVER_FUNCTION,
-  HIDDEN_USE_SCOPE,
-} from './constants';
+import { HIDDEN_SERVER_FUNCTION } from './constants';
 
 export interface Options {
   directive: string;
@@ -68,7 +64,7 @@ function getDescriptiveName(path: babel.NodePath): string {
 
 const SKIP_MARKER = '@skip use-server-directive';
 
-function shouldSkip(path: babel.NodePath<ServerFunctionExpression>): boolean {
+function shouldSkip(path: babel.NodePath<t.BlockStatement>): boolean {
   const comments = path.node.leadingComments;
   if (comments) {
     for (let i = 0, len = comments.length; i < len; i++) {
@@ -80,28 +76,62 @@ function shouldSkip(path: babel.NodePath<ServerFunctionExpression>): boolean {
   return false;
 }
 
-type ServerFunctionExpression =
-  | t.ArrowFunctionExpression
-  | t.FunctionExpression
-  | t.FunctionDeclaration;
-
-function isServerFunction(
+function getServerBlockModeFromDirectives(
   ctx: StateContext,
-  path: babel.NodePath<ServerFunctionExpression>,
-): boolean {
-  if (shouldSkip(path)) {
-    return false;
-  }
-  if (path.node.async && path.node.body.type === 'BlockStatement') {
-    const dirs = path.node.body.directives;
-    for (let i = 0, len = dirs.length; i < len; i++) {
-      const literal = dirs[i].value.value;
-      if (literal === ctx.options.directive) {
-        return true;
+  path: babel.NodePath<t.BlockStatement>,
+  parent: babel.NodePath<t.Function> | null,
+): 'normal' | 'generator' | undefined {
+  for (let i = 0, len = path.node.directives.length; i < len; i++) {
+    const statement = path.node.directives[i];
+    if (statement.value.value === ctx.options.directive) {
+      if (parent?.node.generator) {
+        return 'generator';
       }
+      return 'normal';
     }
   }
-  return false;
+  return undefined;
+}
+
+function getServerBlockModeFromFauxDirectives(
+  ctx: StateContext,
+  path: babel.NodePath<t.BlockStatement>,
+  parent: babel.NodePath<t.Function> | null,
+): 'normal' | 'generator' | undefined {
+  for (let i = 0, len = path.node.body.length; i < len; i++) {
+    const statement = path.node.body[i];
+    if (
+      statement.type === 'ExpressionStatement' &&
+      statement.expression.type === 'StringLiteral'
+    ) {
+      if (statement.expression.value === ctx.options.directive) {
+        if (parent?.node.generator) {
+          return 'generator';
+        }
+        return 'normal';
+      }
+    } else {
+      break;
+    }
+  }
+  return undefined;
+}
+
+function getServerBlockMode(
+  ctx: StateContext,
+  path: babel.NodePath<t.BlockStatement>,
+): 'normal' | 'generator' | undefined {
+  if (shouldSkip(path)) {
+    return undefined;
+  }
+  const parent = path.getFunctionParent();
+  if (parent && !parent.node.async) {
+    return undefined;
+  }
+  return (
+    getServerBlockModeFromDirectives(ctx, path, parent) ||
+    getServerBlockModeFromFauxDirectives(ctx, path, parent)
+  );
 }
 
 function getRootStatementPath(path: babel.NodePath): babel.NodePath {
@@ -116,115 +146,213 @@ function getRootStatementPath(path: babel.NodePath): babel.NodePath {
   return path;
 }
 
-function convertServerFunction(node: ServerFunctionExpression): t.Expression {
+function convertServerBlock(node: t.BlockStatement): t.BlockStatement {
   return t.addComment(
-    node.type === 'ArrowFunctionExpression'
-      ? t.arrowFunctionExpression(node.params, node.body, node.async)
-      : t.functionExpression(
-          node.id,
-          node.params,
-          node.body,
-          node.generator,
-          node.async,
-        ),
+    t.blockStatement(node.body, node.directives),
     'leading',
     SKIP_MARKER,
     false,
   );
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
-function transformFunction(
-  ctx: StateContext,
-  path: babel.NodePath<ServerFunctionExpression>,
-): void {
-  if (isServerFunction(ctx, path)) {
-    // Create registration call
-    const registerID = path.scope.generateUidIdentifier('server');
-    // Setup for clone call
-    const cloneArgs: t.Expression[] = [registerID];
-    const scope = getForeignBindings(path);
-    cloneArgs.push(t.arrowFunctionExpression([], t.arrayExpression(scope)));
-    if (scope.length) {
-      // Add scoping to the arrow function
-      if (ctx.options.mode === 'server') {
-        const statement = t.isStatement(path.node.body)
-          ? path.node.body
-          : t.blockStatement([t.returnStatement(path.node.body)]);
-        statement.body = [
-          t.variableDeclaration('const', [
-            t.variableDeclarator(
-              t.arrayPattern(scope),
-              t.callExpression(
-                getImportIdentifier(
-                  ctx,
-                  path,
-                  `use-server-directive/${ctx.options.mode}`,
-                  HIDDEN_USE_SCOPE,
-                ),
-                [],
-              ),
-            ),
-          ]),
-          ...statement.body,
-        ];
+const BREAK_KEY = t.numericLiteral(0);
+const CONTINUE_KEY = t.numericLiteral(1);
+const RETURN_KEY = t.numericLiteral(2);
+const NO_HALT_KEY = t.numericLiteral(3);
 
-        path.node.body = statement;
+function transformHalting(path: babel.NodePath<t.BlockStatement>): {
+  breaks: string[] | undefined;
+  continues: string[] | undefined;
+  hasReturn: boolean;
+} {
+  const target =
+    path.scope.getFunctionParent() || path.scope.getProgramParent();
+
+  let breaks: string[] | undefined;
+  let continues: string[] | undefined;
+  let hasReturn = false;
+
+  const loopStack: boolean[] = [];
+
+  path.traverse({
+    Loop: {
+      enter() {
+        loopStack.push(true);
+      },
+      exit() {
+        loopStack.pop();
+      },
+    },
+    SwitchStatement: {
+      enter() {
+        loopStack.push(false);
+      },
+      exit() {
+        loopStack.pop();
+      },
+    },
+    BreakStatement(child) {
+      if (loopStack.length && loopStack[loopStack.length - 1]) {
+        return;
       }
-    }
-    // Create an ID
-    let id = `${ctx.prefix}${ctx.count}`;
-    if (ctx.options.env !== 'production') {
-      id += `-${getDescriptiveName(path)}`;
-    }
-    ctx.count += 1;
-    const args: t.Expression[] = [t.stringLiteral(id)];
-    if (ctx.options.mode === 'server') {
-      // Hoist the argument
-      args.push(convertServerFunction(path.node));
-    }
-    const register = t.callExpression(
-      getImportIdentifier(
-        ctx,
-        path,
-        `use-server-directive/${ctx.options.mode}`,
-        HIDDEN_SERVER_FUNCTION,
-      ),
-      args,
-    );
-    // Locate root statement (the top-level statement)
-    const rootStatement = getRootStatementPath(path);
-    // Push the declaration
-    rootStatement.insertBefore(
-      t.variableDeclaration('const', [
-        t.variableDeclarator(registerID, register),
-      ]),
-    );
-    // Replace with clone
-    const replacement = t.callExpression(
-      getImportIdentifier(
-        ctx,
-        path,
-        `use-server-directive/${ctx.options.mode}`,
-        HIDDEN_CLONE,
-      ),
-      cloneArgs,
-    );
-    if (path.node.type === 'FunctionDeclaration') {
-      const declarationID =
-        path.node.id || path.scope.generateUidIdentifier('fn');
-      const declaration = t.variableDeclaration('var', [
-        t.variableDeclarator(declarationID, replacement),
-      ]);
-      if (path.parentPath.isExportDefaultDeclaration()) {
-        path.parentPath.insertBefore(declaration);
-        path.replaceWith(declarationID);
-      } else {
-        path.replaceWith(declaration);
+      const parent =
+        child.scope.getFunctionParent() || child.scope.getProgramParent();
+      if (parent === target) {
+        const replacement: t.Expression[] = [BREAK_KEY];
+        if (!breaks) {
+          breaks = [];
+        }
+        if (child.node.label) {
+          const targetName = child.node.label.name;
+          breaks.push(targetName);
+          replacement.push(t.stringLiteral(targetName));
+        }
+        child.replaceWith(t.returnStatement(t.arrayExpression(replacement)));
+        child.skip();
       }
-    } else {
-      path.replaceWith(replacement);
+    },
+    ContinueStatement(child) {
+      if (loopStack.length && loopStack[loopStack.length - 1]) {
+        return;
+      }
+      const parent =
+        child.scope.getFunctionParent() || child.scope.getProgramParent();
+      if (parent === target) {
+        const replacement: t.Expression[] = [CONTINUE_KEY];
+        if (!continues) {
+          continues = [];
+        }
+        if (child.node.label) {
+          const targetName = child.node.label.name;
+          continues.push(targetName);
+          replacement.push(t.stringLiteral(targetName));
+        }
+        child.replaceWith(t.returnStatement(t.arrayExpression(replacement)));
+        child.skip();
+      }
+    },
+    ReturnStatement(child) {
+      const parent =
+        child.scope.getFunctionParent() || child.scope.getProgramParent();
+      if (parent === target) {
+        hasReturn = true;
+        const result: t.Expression[] = [RETURN_KEY];
+        if (child.node.argument) {
+          result.push(child.node.argument);
+        }
+        child.replaceWith(t.returnStatement(t.arrayExpression(result)));
+        child.skip();
+      }
+    },
+  });
+
+  path.node.body.push(t.returnStatement(t.arrayExpression([NO_HALT_KEY])));
+
+  return { breaks, continues, hasReturn };
+}
+
+function transformNormalServerBlock(
+  ctx: StateContext,
+  path: babel.NodePath<t.BlockStatement>,
+): void {
+  // Create registration call
+  const registerID = path.scope.generateUidIdentifier('server');
+  // Setup for clone call
+  const cloneArgs: t.Identifier[] = getForeignBindings(path);
+  const halting = transformHalting(path);
+  // Create an ID
+  let id = `${ctx.prefix}${ctx.count}`;
+  if (ctx.options.env !== 'production') {
+    id += `-${getDescriptiveName(path)}`;
+  }
+  ctx.count += 1;
+  const args: t.Expression[] = [t.stringLiteral(id)];
+  if (ctx.options.mode === 'server') {
+    // Hoist the argument
+    args.push(
+      t.arrowFunctionExpression(cloneArgs, convertServerBlock(path.node)),
+    );
+  }
+  const register = t.callExpression(
+    getImportIdentifier(
+      ctx,
+      path,
+      `use-server-directive/${ctx.options.mode}`,
+      HIDDEN_SERVER_FUNCTION,
+    ),
+    args,
+  );
+  // Locate root statement (the top-level statement)
+  const rootStatement = getRootStatementPath(path);
+  // Push the declaration
+  rootStatement.insertBefore(
+    t.variableDeclaration('const', [
+      t.variableDeclarator(registerID, register),
+    ]),
+  );
+  const returnType = path.scope.generateUidIdentifier('type');
+  const returnResult = path.scope.generateUidIdentifier('result');
+  let check: t.Statement | undefined;
+  if (halting.hasReturn) {
+    check = t.ifStatement(
+      t.binaryExpression('===', returnType, RETURN_KEY),
+      t.blockStatement([t.returnStatement(returnResult)]),
+    );
+  }
+  if (halting.breaks) {
+    let current: t.Statement = t.blockStatement([t.breakStatement()]);
+    for (let i = 0, len = halting.breaks.length; i < len; i++) {
+      const target = halting.breaks[i];
+      current = t.ifStatement(
+        t.binaryExpression('===', returnType, t.stringLiteral(target)),
+        t.blockStatement([t.breakStatement(t.identifier(target))]),
+        current,
+      );
     }
+    check = t.ifStatement(
+      t.binaryExpression('===', returnType, BREAK_KEY),
+      current,
+      check,
+    );
+  }
+  if (halting.continues) {
+    let current: t.Statement = t.blockStatement([t.continueStatement()]);
+    for (let i = 0, len = halting.continues.length; i < len; i++) {
+      const target = halting.continues[i];
+      current = t.ifStatement(
+        t.binaryExpression('===', returnType, t.stringLiteral(target)),
+        t.blockStatement([t.continueStatement(t.identifier(target))]),
+        current,
+      );
+    }
+    check = t.ifStatement(
+      t.binaryExpression('===', returnType, BREAK_KEY),
+      current,
+      check,
+    );
+  }
+  // Replace with clone
+  const replacement: t.Statement[] = [
+    t.variableDeclaration('const', [
+      t.variableDeclarator(
+        t.arrayPattern([returnType, returnResult]),
+        t.awaitExpression(t.callExpression(registerID, cloneArgs)),
+      ),
+    ]),
+  ];
+  if (check) {
+    replacement.push(check);
+  }
+  path.replaceWith(t.blockStatement(replacement));
+}
+
+function transformBlock(
+  ctx: StateContext,
+  path: babel.NodePath<t.BlockStatement>,
+): void {
+  const mode = getServerBlockMode(ctx, path);
+  if (mode === 'normal') {
+    transformNormalServerBlock(ctx, path);
   }
 }
 
@@ -236,14 +364,8 @@ function plugin(): babel.PluginObj<State> {
   return {
     name: 'use-server-directive',
     visitor: {
-      ArrowFunctionExpression(path, ctx): void {
-        transformFunction(ctx.opts, path);
-      },
-      FunctionDeclaration(path, ctx): void {
-        transformFunction(ctx.opts, path);
-      },
-      FunctionExpression(path, ctx): void {
-        transformFunction(ctx.opts, path);
+      BlockStatement(path, ctx) {
+        transformBlock(ctx.opts, path);
       },
     },
   };

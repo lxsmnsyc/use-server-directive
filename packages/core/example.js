@@ -1,10 +1,18 @@
 import { compile } from './dist/esm/development/compiler.mjs';
 
 const code = `
-const example = async function () {
-  "use server";
-
-  return 'test';
+async function example() {
+  example:
+  while (true) {
+    'use server';
+    const random = Math.random();
+    if (random > 0.75) {
+      return 'returned';
+    } else if (random > 0.5) {
+      break example;
+    }
+  }
+  return 'broken';
 }
 `;
 

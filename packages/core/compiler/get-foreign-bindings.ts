@@ -13,6 +13,10 @@ function isForeignBinding(
     return true;
   }
   if (current.scope.hasOwnBinding(name)) {
+    const binding = current.scope.getBinding(name);
+    if (binding && binding.kind === 'param') {
+      return true;
+    }
     return false;
   }
   if (current.parentPath) {
@@ -30,6 +34,41 @@ function isInTypescript(path: babel.NodePath): boolean {
     parent = parent.parentPath;
   }
   return false;
+}
+
+function filterBindings(
+  path: babel.NodePath,
+  identifiers: Set<string>,
+): t.Identifier[] {
+  const result: t.Identifier[] = [];
+  for (const identifier of identifiers) {
+    const binding = path.scope.getBinding(identifier);
+
+    if (binding) {
+      switch (binding.kind) {
+        case 'const':
+        case 'let':
+        case 'var':
+        case 'param':
+        case 'local':
+        case 'hoisted': {
+          let blockParent = binding.path.scope.getBlockParent();
+          const programParent = binding.path.scope.getProgramParent();
+
+          if (blockParent.path === binding.path) {
+            blockParent = blockParent.parent;
+          }
+
+          // We don't need top-level declarations
+          if (blockParent !== programParent) {
+            result.push(t.identifier(identifier));
+          }
+          break;
+        }
+      }
+    }
+  }
+  return result;
 }
 
 export default function getForeignBindings(
@@ -70,33 +109,5 @@ export default function getForeignBindings(
     },
   });
 
-  const result: t.Identifier[] = [];
-  for (const identifier of identifiers) {
-    const binding = path.scope.getBinding(identifier);
-
-    if (binding) {
-      switch (binding.kind) {
-        case 'const':
-        case 'let':
-        case 'var':
-        case 'param':
-        case 'local':
-        case 'hoisted': {
-          let blockParent = binding.path.scope.getBlockParent();
-          const programParent = binding.path.scope.getProgramParent();
-
-          if (blockParent.path === binding.path) {
-            blockParent = blockParent.parent;
-          }
-
-          // We don't need top-level declarations
-          if (blockParent !== programParent) {
-            result.push(t.identifier(identifier));
-          }
-          break;
-        }
-      }
-    }
-  }
-  return result;
+  return filterBindings(path, identifiers);
 }
