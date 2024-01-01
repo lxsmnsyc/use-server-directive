@@ -1,0 +1,122 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`LabeledStatement > client > should skip server labeled statements in non-async functions 1`] = `
+"const example = () => {
+  foo: {
+    'use server';
+    doStuff();
+  }
+};"
+`;
+
+exports[`LabeledStatement > client > should skip top-level values for scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const value = 'foo bar';
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+foo: {
+  const [_type, _result] = await _server();
+}"
+`;
+
+exports[`LabeledStatement > client > should transform break statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+foo: {
+  const [_type, _result] = await _server();
+  if (_type === 0) {
+    if (_result === "foo") {
+      break foo;
+    }
+  }
+}"
+`;
+
+exports[`LabeledStatement > client > should transform valid server functions with scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-foo");
+async function foo() {
+  const value = 'foo bar';
+  foo: {
+    const [_type, _result] = await _server(value);
+  }
+}"
+`;
+
+exports[`LabeledStatement > client > should transform valid server labeled statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+foo: {
+  const [_type, _result] = await _server();
+}"
+`;
+
+exports[`LabeledStatement > server > should skip server labeled statements in non-async functions 1`] = `
+"const example = () => {
+  foo: {
+    'use server';
+    doStuff();
+  }
+};"
+`;
+
+exports[`LabeledStatement > server > should skip top-level values for scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const value = 'foo bar';
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  await doStuff(value);
+  return [3];
+});
+foo: {
+  const [_type, _result] = await _server();
+}"
+`;
+
+exports[`LabeledStatement > server > should transform break statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  if (cond()) {
+    await doStuff(value);
+  } else {
+    return [0, "foo"];
+  }
+  await doMoreStuff();
+  return [3];
+});
+foo: {
+  const [_type, _result] = await _server();
+  if (_type === 0) {
+    if (_result === "foo") {
+      break foo;
+    }
+  }
+}"
+`;
+
+exports[`LabeledStatement > server > should transform valid server functions with scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-foo", async function (value) /*@skip use-server-directive*/{
+  'use server';
+  await doStuff(value);
+  return [3];
+});
+async function foo() {
+  const value = 'foo bar';
+  foo: {
+    const [_type, _result] = await _server(value);
+  }
+}"
+`;
+
+exports[`LabeledStatement > server > should transform valid server labeled statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  await doStuff();
+  return [3];
+});
+foo: {
+  const [_type, _result] = await _server();
+}"
+`;

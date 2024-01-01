@@ -147,55 +147,43 @@ function convertServerBlock(node: t.BlockStatement): t.BlockStatement {
   );
 }
 
+// These are internal code for the control flow of the server block
+// The goal is to transform these into return statements, and the
+// the return value with the associated control flow code.
+// This allows the replacement statement for the server block to
+// know what to do if it encounters the said statement on the server.
 const BREAK_KEY = t.numericLiteral(0);
 const CONTINUE_KEY = t.numericLiteral(1);
 const RETURN_KEY = t.numericLiteral(2);
+// If the function has no explicit return
 const NO_HALT_KEY = t.numericLiteral(3);
 
 function transformHalting(path: babel.NodePath<t.BlockStatement>): {
-  breaks: string[] | undefined;
-  continues: string[] | undefined;
+  breaks: string[];
+  breakCount: number;
+  continues: string[];
+  continueCount: number;
   hasReturn: boolean;
   hasYield: boolean;
 } {
   const target =
     path.scope.getFunctionParent() || path.scope.getProgramParent();
 
-  let breaks: string[] | undefined;
-  let continues: string[] | undefined;
+  const breaks: string[] = [];
+  let breakCount = 0;
+  const continues: string[] = [];
+  let continueCount = 0;
   let hasReturn = false;
   let hasYield = false;
 
-  const loopStack: boolean[] = [];
-
+  // Transform the control flow statements
   path.traverse({
-    Loop: {
-      enter() {
-        loopStack.push(true);
-      },
-      exit() {
-        loopStack.pop();
-      },
-    },
-    SwitchStatement: {
-      enter() {
-        loopStack.push(false);
-      },
-      exit() {
-        loopStack.pop();
-      },
-    },
     BreakStatement(child) {
-      if (loopStack.length && loopStack[loopStack.length - 1]) {
-        return;
-      }
       const parent =
         child.scope.getFunctionParent() || child.scope.getProgramParent();
       if (parent === target) {
         const replacement: t.Expression[] = [BREAK_KEY];
-        if (!breaks) {
-          breaks = [];
-        }
+        breakCount++;
         if (child.node.label) {
           const targetName = child.node.label.name;
           breaks.push(targetName);
@@ -206,16 +194,11 @@ function transformHalting(path: babel.NodePath<t.BlockStatement>): {
       }
     },
     ContinueStatement(child) {
-      if (loopStack.length && loopStack[loopStack.length - 1]) {
-        return;
-      }
       const parent =
         child.scope.getFunctionParent() || child.scope.getProgramParent();
       if (parent === target) {
         const replacement: t.Expression[] = [CONTINUE_KEY];
-        if (!continues) {
-          continues = [];
-        }
+        continueCount++;
         if (child.node.label) {
           const targetName = child.node.label.name;
           continues.push(targetName);
@@ -249,17 +232,159 @@ function transformHalting(path: babel.NodePath<t.BlockStatement>): {
 
   path.node.body.push(t.returnStatement(t.arrayExpression([NO_HALT_KEY])));
 
-  return { breaks, continues, hasReturn, hasYield };
+  return { breaks, continues, hasReturn, hasYield, breakCount, continueCount };
+}
+
+// This generates a chain of if-statements that checks the
+// received server return (which is transformed from the original block's
+// server statement)
+// Each if-statement matches an specific label, assuming that the original
+// break statement is a labeled break statement.
+// Otherwise, the output code is either a normal break statement or none.
+function getBreakCheck(
+  returnType: t.Identifier,
+  returnResult: t.Identifier,
+  breakCount: number,
+  breaks: string[],
+  check: t.Statement | undefined,
+): t.Statement | undefined {
+  let current: t.Statement | undefined;
+  if (breakCount !== breaks.length) {
+    current = t.blockStatement([t.breakStatement()]);
+  }
+  for (let i = 0, len = breaks.length; i < len; i++) {
+    const target = breaks[i];
+    current = t.blockStatement([
+      t.ifStatement(
+        t.binaryExpression('===', returnResult, t.stringLiteral(target)),
+        t.blockStatement([t.breakStatement(t.identifier(target))]),
+        current,
+      ),
+    ]);
+  }
+  if (current) {
+    return t.ifStatement(
+      t.binaryExpression('===', returnType, BREAK_KEY),
+      current,
+      check,
+    );
+  }
+  return check;
+}
+
+// This generates a chain of if-statements that checks the
+// received server return (which is transformed from the original block's
+// server statement)
+// Each if-statement matches an specific label, assuming that the original
+// continue statement is a labeled continue statement.
+// Otherwise, the output code is either a normal continue statement or none.
+function getContinueCheck(
+  returnType: t.Identifier,
+  returnResult: t.Identifier,
+  continueCount: number,
+  continues: string[],
+  check: t.Statement | undefined,
+): t.Statement | undefined {
+  let current: t.Statement | undefined;
+  if (continueCount !== continues.length) {
+    current = t.blockStatement([t.continueStatement()]);
+  }
+  for (let i = 0, len = continues.length; i < len; i++) {
+    const target = continues[i];
+    current = t.blockStatement([
+      t.ifStatement(
+        t.binaryExpression('===', returnResult, t.stringLiteral(target)),
+        t.blockStatement([t.continueStatement(t.identifier(target))]),
+        current,
+      ),
+    ]);
+  }
+  if (current) {
+    return t.ifStatement(
+      t.binaryExpression('===', returnType, CONTINUE_KEY),
+      current,
+      check,
+    );
+  }
+  return check;
+}
+
+function getGeneratorReplacementForServerBlock(
+  path: babel.NodePath<t.BlockStatement>,
+  returnType: t.Identifier,
+  returnResult: t.Identifier,
+  registerID: t.Identifier,
+  cloneArgs: t.Identifier[],
+  check: t.Statement | undefined,
+): t.BlockStatement {
+  const iterator = path.scope.generateUidIdentifier('iterator');
+  const step = path.scope.generateUidIdentifier('step');
+  const replacement: t.Statement[] = [
+    t.variableDeclaration('let', [
+      // Generate variables
+      t.variableDeclarator(returnType),
+      t.variableDeclarator(returnResult),
+      // First, get the iterator by calling the generator
+      t.variableDeclarator(
+        iterator,
+        t.awaitExpression(t.callExpression(registerID, cloneArgs)),
+      ),
+    ]),
+    // Create a while statement, the intent is to
+    // repeatedly iterate the generator
+    t.whileStatement(
+      t.booleanLiteral(true),
+      t.blockStatement([
+        // Get the next value
+        t.variableDeclaration('const', [
+          t.variableDeclarator(
+            step,
+            t.callExpression(
+              t.memberExpression(iterator, t.identifier('next')),
+              [],
+            ),
+          ),
+        ]),
+        // Check if the step is done
+        t.ifStatement(
+          t.memberExpression(step, t.identifier('done')),
+          t.blockStatement([
+            t.expressionStatement(
+              // Assign the value to the type and result
+              t.assignmentExpression(
+                '=',
+                t.arrayPattern([returnType, returnResult]),
+                t.memberExpression(step, t.identifier('value')),
+              ),
+            ),
+            // exit the loop
+            t.breakStatement(),
+          ]),
+          // Otherwise, yield the value
+          t.blockStatement([
+            t.expressionStatement(
+              t.yieldExpression(
+                t.memberExpression(step, t.identifier('value')),
+              ),
+            ),
+          ]),
+        ),
+      ]),
+    ),
+  ];
+  if (check) {
+    replacement.push(check);
+  }
+  return t.blockStatement(replacement);
 }
 
 function transformServerBlock(
   ctx: StateContext,
   path: babel.NodePath<t.BlockStatement>,
 ): void {
-  // Create registration call
-  const registerID = path.scope.generateUidIdentifier('server');
-  // Setup for clone call
+  // Get all bindings needed by the function
   const cloneArgs: t.Identifier[] = getForeignBindings(path);
+  // Transform all control statements
   const halting = transformHalting(path);
   // Create an ID
   let id = `${ctx.prefix}${ctx.count}`;
@@ -267,9 +392,12 @@ function transformServerBlock(
     id += `-${getDescriptiveName(path)}`;
   }
   ctx.count += 1;
+  // Generate arguments for the server function instanciation
   const args: t.Expression[] = [t.stringLiteral(id)];
+  // If the compilation mode is in server mode
   if (ctx.options.mode === 'server') {
-    // Hoist the argument
+    // Create a new function whose body is the transformed
+    // server block
     args.push(
       t.functionExpression(
         undefined,
@@ -280,6 +408,7 @@ function transformServerBlock(
       ),
     );
   }
+  // Create the registration call
   const register = t.callExpression(
     getImportIdentifier(
       ctx,
@@ -292,103 +421,57 @@ function transformServerBlock(
   // Locate root statement (the top-level statement)
   const rootStatement = getRootStatementPath(path);
   // Push the declaration
+  const registerID = path.scope.generateUidIdentifier('server');
   rootStatement.insertBefore(
     t.variableDeclaration('const', [
       t.variableDeclarator(registerID, register),
     ]),
   );
+  // Move to the replacement for the server block,
+  // declare the type and result based from transformHalting
   const returnType = path.scope.generateUidIdentifier('type');
   const returnResult = path.scope.generateUidIdentifier('result');
   let check: t.Statement | undefined;
+  // If the block has a return, we need to make sure that the
+  // replacement does too.
   if (halting.hasReturn) {
     check = t.ifStatement(
       t.binaryExpression('===', returnType, RETURN_KEY),
       t.blockStatement([t.returnStatement(returnResult)]),
     );
   }
-  if (halting.breaks) {
-    let current: t.Statement = t.blockStatement([t.breakStatement()]);
-    for (let i = 0, len = halting.breaks.length; i < len; i++) {
-      const target = halting.breaks[i];
-      current = t.ifStatement(
-        t.binaryExpression('===', returnType, t.stringLiteral(target)),
-        t.blockStatement([t.breakStatement(t.identifier(target))]),
-        current,
-      );
-    }
-    check = t.ifStatement(
-      t.binaryExpression('===', returnType, BREAK_KEY),
-      current,
+  // If the block has a break, we also do it.
+  if (halting.breakCount > 0) {
+    check = getBreakCheck(
+      returnType,
+      returnResult,
+      halting.breakCount,
+      halting.breaks,
       check,
     );
   }
-  if (halting.continues) {
-    let current: t.Statement = t.blockStatement([t.continueStatement()]);
-    for (let i = 0, len = halting.continues.length; i < len; i++) {
-      const target = halting.continues[i];
-      current = t.ifStatement(
-        t.binaryExpression('===', returnType, t.stringLiteral(target)),
-        t.blockStatement([t.continueStatement(t.identifier(target))]),
-        current,
-      );
-    }
-    check = t.ifStatement(
-      t.binaryExpression('===', returnType, BREAK_KEY),
-      current,
+  // If the block has a continue, we also do it.
+  if (halting.continueCount > 0) {
+    check = getContinueCheck(
+      returnType,
+      returnResult,
+      halting.continueCount,
+      halting.continues,
       check,
     );
   }
+  // If the server block happens to be declared in a generator
   if (halting.hasYield) {
-    const iterator = path.scope.generateUidIdentifier('iterator');
-    const step = path.scope.generateUidIdentifier('step');
-    const replacement: t.Statement[] = [
-      t.variableDeclaration('let', [
-        t.variableDeclarator(returnType),
-        t.variableDeclarator(returnResult),
-        t.variableDeclarator(
-          iterator,
-          t.awaitExpression(t.callExpression(registerID, cloneArgs)),
-        ),
-      ]),
-      t.whileStatement(
-        t.booleanLiteral(true),
-        t.blockStatement([
-          t.variableDeclaration('const', [
-            t.variableDeclarator(
-              step,
-              t.callExpression(
-                t.memberExpression(iterator, t.identifier('next')),
-                [],
-              ),
-            ),
-          ]),
-          t.ifStatement(
-            t.memberExpression(step, t.identifier('done')),
-            t.blockStatement([
-              t.expressionStatement(
-                t.assignmentExpression(
-                  '=',
-                  t.arrayPattern([returnType, returnResult]),
-                  t.memberExpression(step, t.identifier('value')),
-                ),
-              ),
-              t.breakStatement(),
-            ]),
-            t.blockStatement([
-              t.expressionStatement(
-                t.yieldExpression(
-                  t.memberExpression(step, t.identifier('value')),
-                ),
-              ),
-            ]),
-          ),
-        ]),
+    path.replaceWith(
+      getGeneratorReplacementForServerBlock(
+        path,
+        returnType,
+        returnResult,
+        registerID,
+        cloneArgs,
+        check,
       ),
-    ];
-    if (check) {
-      replacement.push(check);
-    }
-    path.replaceWith(t.blockStatement(replacement));
+    );
   } else {
     const replacement: t.Statement[] = [
       t.variableDeclaration('const', [

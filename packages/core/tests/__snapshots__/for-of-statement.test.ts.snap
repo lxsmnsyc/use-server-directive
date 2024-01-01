@@ -1,0 +1,219 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ForOfStatement > client > should skip server for-of statements in non-async functions 1`] = `
+"const example = () => {
+  for (const item of items) {
+    'use server';
+    doStuff();
+  }
+};"
+`;
+
+exports[`ForOfStatement > client > should skip top-level values for scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const value = 'foo bar';
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+for (const item of items) {
+  const [_type, _result] = await _server();
+}"
+`;
+
+exports[`ForOfStatement > client > should transform break statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+for (const item of items) {
+  const [_type, _result] = await _server();
+  if (_type === 0) {
+    break;
+  }
+}"
+`;
+
+exports[`ForOfStatement > client > should transform continue statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+for (const item of items) {
+  const [_type, _result] = await _server();
+  if (_type === 1) {
+    continue;
+  }
+}"
+`;
+
+exports[`ForOfStatement > client > should transform labeled break statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+foo: for (const item of items) {
+  const [_type, _result] = await _server();
+  if (_type === 0) {
+    if (_result === "foo") {
+      break foo;
+    }
+  }
+}"
+`;
+
+exports[`ForOfStatement > client > should transform labeled continue statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+foo: for (const item of items) {
+  const [_type, _result] = await _server();
+  if (_type === 1) {
+    if (_result === "foo") {
+      continue foo;
+    }
+  }
+}"
+`;
+
+exports[`ForOfStatement > client > should transform valid server for-of statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+for (const item of items) {
+  const [_type, _result] = await _server();
+}"
+`;
+
+exports[`ForOfStatement > client > should transform valid server functions with scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-foo");
+async function foo() {
+  const value = 'foo bar';
+  for (const item of items) {
+    const [_type, _result] = await _server(value);
+  }
+}"
+`;
+
+exports[`ForOfStatement > server > should skip server for-of statements in non-async functions 1`] = `
+"const example = () => {
+  for (const item of items) {
+    'use server';
+    doStuff();
+  }
+};"
+`;
+
+exports[`ForOfStatement > server > should skip top-level values for scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const value = 'foo bar';
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  await doStuff(value);
+  return [3];
+});
+for (const item of items) {
+  const [_type, _result] = await _server();
+}"
+`;
+
+exports[`ForOfStatement > server > should transform break statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  if (cond()) {
+    await doStuff(value);
+  } else {
+    return [0];
+  }
+  await doMoreStuff();
+  return [3];
+});
+for (const item of items) {
+  const [_type, _result] = await _server();
+  if (_type === 0) {
+    break;
+  }
+}"
+`;
+
+exports[`ForOfStatement > server > should transform continue statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  if (cond()) {
+    await doStuff(value);
+  } else {
+    return [1];
+  }
+  await doMoreStuff();
+  return [3];
+});
+for (const item of items) {
+  const [_type, _result] = await _server();
+  if (_type === 1) {
+    continue;
+  }
+}"
+`;
+
+exports[`ForOfStatement > server > should transform labeled break statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  if (cond()) {
+    await doStuff(value);
+  } else {
+    return [0, "foo"];
+  }
+  await doMoreStuff();
+  return [3];
+});
+foo: for (const item of items) {
+  const [_type, _result] = await _server();
+  if (_type === 0) {
+    if (_result === "foo") {
+      break foo;
+    }
+  }
+}"
+`;
+
+exports[`ForOfStatement > server > should transform labeled continue statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  if (cond()) {
+    await doStuff(value);
+  } else {
+    return [1, "foo"];
+  }
+  await doMoreStuff();
+  return [3];
+});
+foo: for (const item of items) {
+  const [_type, _result] = await _server();
+  if (_type === 1) {
+    if (_result === "foo") {
+      continue foo;
+    }
+  }
+}"
+`;
+
+exports[`ForOfStatement > server > should transform valid server for-of statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  await doStuff();
+  return [3];
+});
+for (const item of items) {
+  const [_type, _result] = await _server();
+}"
+`;
+
+exports[`ForOfStatement > server > should transform valid server functions with scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-foo", async function (value) /*@skip use-server-directive*/{
+  'use server';
+  await doStuff(value);
+  return [3];
+});
+async function foo() {
+  const value = 'foo bar';
+  for (const item of items) {
+    const [_type, _result] = await _server(value);
+  }
+}"
+`;

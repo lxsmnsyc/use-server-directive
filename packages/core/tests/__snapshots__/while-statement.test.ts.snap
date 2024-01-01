@@ -1,0 +1,219 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`WhileStatement > client > should skip server while statements in non-async functions 1`] = `
+"const example = () => {
+  while (cond()) {
+    'use server';
+    doStuff();
+  }
+};"
+`;
+
+exports[`WhileStatement > client > should skip top-level values for scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const value = 'foo bar';
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+while (cond()) {
+  const [_type, _result] = await _server();
+}"
+`;
+
+exports[`WhileStatement > client > should transform break statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+while (cond()) {
+  const [_type, _result] = await _server();
+  if (_type === 0) {
+    break;
+  }
+}"
+`;
+
+exports[`WhileStatement > client > should transform continue statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+while (cond()) {
+  const [_type, _result] = await _server();
+  if (_type === 1) {
+    continue;
+  }
+}"
+`;
+
+exports[`WhileStatement > client > should transform labeled break statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+foo: while (cond()) {
+  const [_type, _result] = await _server();
+  if (_type === 0) {
+    if (_result === "foo") {
+      break foo;
+    }
+  }
+}"
+`;
+
+exports[`WhileStatement > client > should transform labeled continue statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+foo: while (cond()) {
+  const [_type, _result] = await _server();
+  if (_type === 1) {
+    if (_result === "foo") {
+      continue foo;
+    }
+  }
+}"
+`;
+
+exports[`WhileStatement > client > should transform valid server functions with scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-foo");
+async function foo() {
+  const value = 'foo bar';
+  while (cond()) {
+    const [_type, _result] = await _server(value);
+  }
+}"
+`;
+
+exports[`WhileStatement > client > should transform valid server while statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+while (cond()) {
+  const [_type, _result] = await _server();
+}"
+`;
+
+exports[`WhileStatement > server > should skip server while statements in non-async functions 1`] = `
+"const example = () => {
+  while (cond()) {
+    'use server';
+    doStuff();
+  }
+};"
+`;
+
+exports[`WhileStatement > server > should skip top-level values for scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const value = 'foo bar';
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  await doStuff(value);
+  return [3];
+});
+while (cond()) {
+  const [_type, _result] = await _server();
+}"
+`;
+
+exports[`WhileStatement > server > should transform break statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  if (cond()) {
+    await doStuff(value);
+  } else {
+    return [0];
+  }
+  await doMoreStuff();
+  return [3];
+});
+while (cond()) {
+  const [_type, _result] = await _server();
+  if (_type === 0) {
+    break;
+  }
+}"
+`;
+
+exports[`WhileStatement > server > should transform continue statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  if (cond()) {
+    await doStuff(value);
+  } else {
+    return [1];
+  }
+  await doMoreStuff();
+  return [3];
+});
+while (cond()) {
+  const [_type, _result] = await _server();
+  if (_type === 1) {
+    continue;
+  }
+}"
+`;
+
+exports[`WhileStatement > server > should transform labeled break statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  if (cond()) {
+    await doStuff(value);
+  } else {
+    return [0, "foo"];
+  }
+  await doMoreStuff();
+  return [3];
+});
+foo: while (cond()) {
+  const [_type, _result] = await _server();
+  if (_type === 0) {
+    if (_result === "foo") {
+      break foo;
+    }
+  }
+}"
+`;
+
+exports[`WhileStatement > server > should transform labeled continue statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  if (cond()) {
+    await doStuff(value);
+  } else {
+    return [1, "foo"];
+  }
+  await doMoreStuff();
+  return [3];
+});
+foo: while (cond()) {
+  const [_type, _result] = await _server();
+  if (_type === 1) {
+    if (_result === "foo") {
+      continue foo;
+    }
+  }
+}"
+`;
+
+exports[`WhileStatement > server > should transform valid server functions with scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-foo", async function (value) /*@skip use-server-directive*/{
+  'use server';
+  await doStuff(value);
+  return [3];
+});
+async function foo() {
+  const value = 'foo bar';
+  while (cond()) {
+    const [_type, _result] = await _server(value);
+  }
+}"
+`;
+
+exports[`WhileStatement > server > should transform valid server while statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  await doStuff();
+  return [3];
+});
+while (cond()) {
+  const [_type, _result] = await _server();
+}"
+`;

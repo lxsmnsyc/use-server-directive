@@ -1,7 +1,6 @@
 async function* example() {
-  for (let i = 0; i < 10; i++) {
-    'use server';
-    yield 'Count: ' + i;
+  if (test()) {
+    ('use server');
+    return asyncStuff();
   }
-  return 'broken';
 }

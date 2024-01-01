@@ -1,0 +1,110 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ArrowFunctionExpression > client > should skip non-async server functions 1`] = `
+"const example = () => {
+  'use server';
+
+  return 'foo bar';
+};"
+`;
+
+exports[`ArrowFunctionExpression > client > should skip top-level values for scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const value = 'foo bar';
+const _server = _$$server("/__server/bb5fd6ee-example-0-example");
+const outer = () => {
+  const example = async () => {
+    const [_type, _result] = await _server();
+    if (_type === 2) {
+      return _result;
+    }
+  };
+};"
+`;
+
+exports[`ArrowFunctionExpression > client > should transform valid server functions 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-example");
+const example = async () => {
+  const [_type, _result] = await _server();
+  if (_type === 2) {
+    return _result;
+  }
+};"
+`;
+
+exports[`ArrowFunctionExpression > client > should transform valid server functions with scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-example");
+const outer = () => {
+  const value = 'foo bar';
+  const example = async () => {
+    const [_type, _result] = await _server(value);
+    if (_type === 2) {
+      return _result;
+    }
+  };
+};"
+`;
+
+exports[`ArrowFunctionExpression > server > should skip non-async server functions 1`] = `
+"const example = () => {
+  'use server';
+
+  return 'foo bar';
+};"
+`;
+
+exports[`ArrowFunctionExpression > server > should skip top-level values for scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const value = 'foo bar';
+const _server = _$$server("/__server/bb5fd6ee-example-0-example", async function () /*@skip use-server-directive*/{
+  'use server';
+
+  return [2, value];
+  return [3];
+});
+const outer = () => {
+  const example = async () => {
+    const [_type, _result] = await _server();
+    if (_type === 2) {
+      return _result;
+    }
+  };
+};"
+`;
+
+exports[`ArrowFunctionExpression > server > should transform valid server functions 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-example", async function () /*@skip use-server-directive*/{
+  'use server';
+
+  return [2, 'foo bar'];
+  return [3];
+});
+const example = async () => {
+  const [_type, _result] = await _server();
+  if (_type === 2) {
+    return _result;
+  }
+};"
+`;
+
+exports[`ArrowFunctionExpression > server > should transform valid server functions with scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-example", async function (value) /*@skip use-server-directive*/{
+  'use server';
+
+  return [2, value];
+  return [3];
+});
+const outer = () => {
+  const value = 'foo bar';
+  const example = async () => {
+    const [_type, _result] = await _server(value);
+    if (_type === 2) {
+      return _result;
+    }
+  };
+};"
+`;

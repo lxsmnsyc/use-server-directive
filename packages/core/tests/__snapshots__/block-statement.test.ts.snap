@@ -1,0 +1,87 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`BlockStatement > client > should skip server block statements in non-async functions 1`] = `
+"const example = () => {
+  {
+    'use server';
+    doStuff();
+  }
+};"
+`;
+
+exports[`BlockStatement > client > should skip top-level values for scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const value = 'foo bar';
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+{
+  const [_type, _result] = await _server();
+}"
+`;
+
+exports[`BlockStatement > client > should transform valid server block statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+{
+  const [_type, _result] = await _server();
+}"
+`;
+
+exports[`BlockStatement > client > should transform valid server functions with scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-foo");
+async function foo() {
+  const value = 'foo bar';
+  {
+    const [_type, _result] = await _server(value);
+  }
+}"
+`;
+
+exports[`BlockStatement > server > should skip server block statements in non-async functions 1`] = `
+"const example = () => {
+  {
+    'use server';
+    doStuff();
+  }
+};"
+`;
+
+exports[`BlockStatement > server > should skip top-level values for scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const value = 'foo bar';
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  await doStuff(value);
+  return [3];
+});
+{
+  const [_type, _result] = await _server();
+}"
+`;
+
+exports[`BlockStatement > server > should transform valid server block statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  await doStuff();
+  return [3];
+});
+{
+  const [_type, _result] = await _server();
+}"
+`;
+
+exports[`BlockStatement > server > should transform valid server functions with scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-foo", async function (value) /*@skip use-server-directive*/{
+  'use server';
+  await doStuff(value);
+  return [3];
+});
+async function foo() {
+  const value = 'foo bar';
+  {
+    const [_type, _result] = await _server(value);
+  }
+}"
+`;

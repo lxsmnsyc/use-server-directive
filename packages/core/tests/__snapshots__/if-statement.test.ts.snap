@@ -1,0 +1,87 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`IfStatement > client > should skip server if statements in non-async functions 1`] = `
+"const example = () => {
+  if (cond()) {
+    'use server';
+    doStuff();
+  }
+};"
+`;
+
+exports[`IfStatement > client > should skip top-level values for scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const value = 'foo bar';
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+if (cond()) {
+  const [_type, _result] = await _server();
+}"
+`;
+
+exports[`IfStatement > client > should transform valid server functions with scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-foo");
+async function foo() {
+  const value = 'foo bar';
+  if (cond()) {
+    const [_type, _result] = await _server(value);
+  }
+}"
+`;
+
+exports[`IfStatement > client > should transform valid server if statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+if (cond()) {
+  const [_type, _result] = await _server();
+}"
+`;
+
+exports[`IfStatement > server > should skip server if statements in non-async functions 1`] = `
+"const example = () => {
+  if (cond()) {
+    'use server';
+    doStuff();
+  }
+};"
+`;
+
+exports[`IfStatement > server > should skip top-level values for scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const value = 'foo bar';
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  await doStuff(value);
+  return [3];
+});
+if (cond()) {
+  const [_type, _result] = await _server();
+}"
+`;
+
+exports[`IfStatement > server > should transform valid server functions with scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-foo", async function (value) /*@skip use-server-directive*/{
+  'use server';
+  await doStuff(value);
+  return [3];
+});
+async function foo() {
+  const value = 'foo bar';
+  if (cond()) {
+    const [_type, _result] = await _server(value);
+  }
+}"
+`;
+
+exports[`IfStatement > server > should transform valid server if statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
+  'use server';
+  await doStuff();
+  return [3];
+});
+if (cond()) {
+  const [_type, _result] = await _server();
+}"
+`;
