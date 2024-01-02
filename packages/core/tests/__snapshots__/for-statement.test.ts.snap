@@ -94,7 +94,7 @@ const _server = _$$server("/__server/bb5fd6ee-example-0-foo");
 async function foo() {
   const value = 'foo bar';
   for (let i = 0; i < 10; i++) {
-    const [_type, _result, _mutations] = await _server();
+    const [_type, _result, _mutations] = await _server(value);
     if (_type === 4) {
       throw _result;
     }
@@ -254,7 +254,7 @@ for (let i = 0; i < 10; i++) {
 
 exports[`ForStatement > server > should transform valid server functions with scope 1`] = `
 "import { $$server as _$$server } from "use-server-directive/server";
-const _server = _$$server("/__server/bb5fd6ee-example-0-foo", async function () {
+const _server = _$$server("/__server/bb5fd6ee-example-0-foo", async function (value) {
   try {
     await doStuff(value);
   } catch (_error) {
@@ -265,7 +265,7 @@ const _server = _$$server("/__server/bb5fd6ee-example-0-foo", async function () 
 async function foo() {
   const value = 'foo bar';
   for (let i = 0; i < 10; i++) {
-    const [_type, _result, _mutations] = await _server();
+    const [_type, _result, _mutations] = await _server(value);
     if (_type === 4) {
       throw _result;
     }

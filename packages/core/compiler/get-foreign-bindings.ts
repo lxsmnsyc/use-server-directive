@@ -88,7 +88,7 @@ export default function getForeignBindings(
 ): ForeignBindings {
   const identifiers = new Set<string>();
   path.traverse({
-    BindingIdentifier(p) {
+    ReferencedIdentifier(p) {
       // Check identifiers that aren't in a TS expression
       if (!isInTypescript(p) && isForeignBinding(path, p, p.node.name)) {
         identifiers.add(p.node.name);

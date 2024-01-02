@@ -33,7 +33,7 @@ async function foo() {
   try {
     doStuff();
   } catch (err) {
-    const [_type, _result, _mutations] = await _server();
+    const [_type, _result, _mutations] = await _server(value);
     if (_type === 4) {
       throw _result;
     }

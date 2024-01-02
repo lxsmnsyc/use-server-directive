@@ -43,7 +43,7 @@ const _server = _$$server("/__server/bb5fd6ee-example-0-example");
 const outer = () => {
   const value = 'foo bar';
   const example = async () => {
-    const [_type, _result, _mutations] = await _server();
+    const [_type, _result, _mutations] = await _server(value);
     if (_type === 2) {
       return _result;
     } else if (_type === 4) {
@@ -106,7 +106,7 @@ const example = async () => {
 
 exports[`ArrowFunctionExpression > server > should transform valid server functions with scope 1`] = `
 "import { $$server as _$$server } from "use-server-directive/server";
-const _server = _$$server("/__server/bb5fd6ee-example-0-example", async function () {
+const _server = _$$server("/__server/bb5fd6ee-example-0-example", async function (value) {
   try {
     return [2, value];
   } catch (_error) {
@@ -117,7 +117,7 @@ const _server = _$$server("/__server/bb5fd6ee-example-0-example", async function
 const outer = () => {
   const value = 'foo bar';
   const example = async () => {
-    const [_type, _result, _mutations] = await _server();
+    const [_type, _result, _mutations] = await _server(value);
     if (_type === 2) {
       return _result;
     } else if (_type === 4) {

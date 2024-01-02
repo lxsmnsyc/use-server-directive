@@ -83,7 +83,7 @@ const _server = _$$server("/__server/bb5fd6ee-example-0-foo");
 async function foo() {
   const value = 'foo bar';
   while (cond()) {
-    const [_type, _result, _mutations] = await _server();
+    const [_type, _result, _mutations] = await _server(value);
     if (_type === 4) {
       throw _result;
     }
@@ -236,7 +236,7 @@ foo: while (cond()) {
 
 exports[`WhileStatement > server > should transform valid server functions with scope 1`] = `
 "import { $$server as _$$server } from "use-server-directive/server";
-const _server = _$$server("/__server/bb5fd6ee-example-0-foo", async function () {
+const _server = _$$server("/__server/bb5fd6ee-example-0-foo", async function (value) {
   try {
     await doStuff(value);
   } catch (_error) {
@@ -247,7 +247,7 @@ const _server = _$$server("/__server/bb5fd6ee-example-0-foo", async function () 
 async function foo() {
   const value = 'foo bar';
   while (cond()) {
-    const [_type, _result, _mutations] = await _server();
+    const [_type, _result, _mutations] = await _server(value);
     if (_type === 4) {
       throw _result;
     }

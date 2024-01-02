@@ -1,5 +1,5 @@
-async function doStuff() {
+async function doStuff(x, y) {
   "use server";
-  await foo();
-  await bar();
+  await foo(x);
+  await bar(y);
 }
