@@ -373,20 +373,14 @@ function getContinueCheck(
 
 function getGeneratorReplacementForServerBlock(
   path: babel.NodePath<t.BlockStatement>,
-  returnType: t.Identifier,
-  returnResult: t.Identifier,
-  returnMutations: t.Identifier,
   registerID: t.Identifier,
   cloneArgs: t.Identifier[],
-): t.Statement[] {
+): [replacements: t.Statement[], step: t.Identifier] {
   const iterator = path.scope.generateUidIdentifier('iterator');
   const step = path.scope.generateUidIdentifier('step');
   const replacement: t.Statement[] = [
     t.variableDeclaration('let', [
-      // Generate variables
-      t.variableDeclarator(returnType),
-      t.variableDeclarator(returnResult),
-      t.variableDeclarator(returnMutations),
+      t.variableDeclarator(step),
       // First, get the iterator by calling the generator
       t.variableDeclarator(
         iterator,
@@ -399,27 +393,20 @@ function getGeneratorReplacementForServerBlock(
       t.booleanLiteral(true),
       t.blockStatement([
         // Get the next value
-        t.variableDeclaration('const', [
-          t.variableDeclarator(
+        t.expressionStatement(
+          t.assignmentExpression(
+            '=',
             step,
             t.callExpression(
               t.memberExpression(iterator, t.identifier('next')),
               [],
             ),
           ),
-        ]),
+        ),
         // Check if the step is done
         t.ifStatement(
           t.memberExpression(step, t.identifier('done')),
           t.blockStatement([
-            t.expressionStatement(
-              // Assign the value to the type and result
-              t.assignmentExpression(
-                '=',
-                t.arrayPattern([returnType, returnResult, returnMutations]),
-                t.memberExpression(step, t.identifier('value')),
-              ),
-            ),
             // exit the loop
             t.breakStatement(),
           ]),
@@ -435,7 +422,7 @@ function getGeneratorReplacementForServerBlock(
       ]),
     ),
   ];
-  return replacement;
+  return [replacement, step];
 }
 
 function transformServerBlock(
@@ -526,23 +513,32 @@ function transformServerBlock(
     );
   }
   // If the server block happens to be declared in a generator
-  const replacement: t.Statement[] = halting.hasYield
-    ? getGeneratorReplacementForServerBlock(
-        path,
-        returnType,
-        returnResult,
-        returnMutations,
-        registerID,
-        referenced,
-      )
-    : [
-        t.variableDeclaration('const', [
-          t.variableDeclarator(
-            t.arrayPattern([returnType, returnResult, returnMutations]),
-            t.awaitExpression(t.callExpression(registerID, referenced)),
-          ),
-        ]),
-      ];
+  let replacement: t.Statement[];
+  if (halting.hasYield) {
+    const [reps, step] = getGeneratorReplacementForServerBlock(
+      path,
+      registerID,
+      referenced,
+    );
+    replacement = [
+      ...reps,
+      t.variableDeclaration('const', [
+        t.variableDeclarator(
+          t.arrayPattern([returnType, returnResult, returnMutations]),
+          t.memberExpression(step, t.identifier('value')),
+        ),
+      ]),
+    ];
+  } else {
+    replacement = [
+      t.variableDeclaration('const', [
+        t.variableDeclarator(
+          t.arrayPattern([returnType, returnResult, returnMutations]),
+          t.awaitExpression(t.callExpression(registerID, referenced)),
+        ),
+      ]),
+    ];
+  }
   if (mutations.length) {
     replacement.push(
       t.expressionStatement(

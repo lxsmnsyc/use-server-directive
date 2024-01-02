@@ -1,5 +1,6 @@
-async function doStuff(x, y) {
+
+async function* doStuff(x, y) {
   "use server";
-  await foo(x);
-  await bar(y);
+  yield foo(x);
+  yield bar(y);
 }
