@@ -1,6 +1,9 @@
 
-async function* doStuff(x, y) {
-  "use server";
-  yield foo(x);
-  yield bar(y);
+async function foo() {
+  const prefix = 'Message: ';
+
+  async function postMessage(message) {
+    'use server';
+    await addMessage(prefix + message);
+  }
 }
