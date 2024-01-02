@@ -18,7 +18,10 @@ const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
 try {
   doStuff();
 } catch (err) {
-  const [_type, _result] = await _server();
+  const [_type, _result, _mutations] = await _server();
+  if (_type === 4) {
+    throw _result;
+  }
 }"
 `;
 
@@ -30,7 +33,10 @@ async function foo() {
   try {
     doStuff();
   } catch (err) {
-    const [_type, _result] = await _server(value);
+    const [_type, _result, _mutations] = await _server();
+    if (_type === 4) {
+      throw _result;
+    }
   }
 }"
 `;
@@ -41,7 +47,10 @@ const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
 try {
   doStuff();
 } catch (err) {
-  const [_type, _result] = await _server();
+  const [_type, _result, _mutations] = await _server();
+  if (_type === 4) {
+    throw _result;
+  }
 }"
 `;
 
@@ -59,23 +68,32 @@ exports[`CatchClause > server > should skip server try statements in non-async f
 exports[`CatchClause > server > should skip top-level values for scope 1`] = `
 "import { $$server as _$$server } from "use-server-directive/server";
 const value = 'foo bar';
-const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
-  'use server';
-  await report(err);
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () {
+  try {
+    await report(err);
+  } catch (_error) {
+    return [4, _error];
+  }
   return [3];
 });
 try {
   doStuff();
 } catch (err) {
-  const [_type, _result] = await _server();
+  const [_type, _result, _mutations] = await _server();
+  if (_type === 4) {
+    throw _result;
+  }
 }"
 `;
 
 exports[`CatchClause > server > should transform valid server functions with scope 1`] = `
 "import { $$server as _$$server } from "use-server-directive/server";
-const _server = _$$server("/__server/bb5fd6ee-example-0-foo", async function () /*@skip use-server-directive*/{
-  'use server';
-  await report(err);
+const _server = _$$server("/__server/bb5fd6ee-example-0-foo", async function () {
+  try {
+    await report(err);
+  } catch (_error) {
+    return [4, _error];
+  }
   return [3];
 });
 async function foo() {
@@ -83,21 +101,30 @@ async function foo() {
   try {
     doStuff();
   } catch (err) {
-    const [_type, _result] = await _server();
+    const [_type, _result, _mutations] = await _server();
+    if (_type === 4) {
+      throw _result;
+    }
   }
 }"
 `;
 
 exports[`CatchClause > server > should transform valid server try statements 1`] = `
 "import { $$server as _$$server } from "use-server-directive/server";
-const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
-  'use server';
-  await report(err);
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () {
+  try {
+    await report(err);
+  } catch (_error) {
+    return [4, _error];
+  }
   return [3];
 });
 try {
   doStuff();
 } catch (err) {
-  const [_type, _result] = await _server();
+  const [_type, _result, _mutations] = await _server();
+  if (_type === 4) {
+    throw _result;
+  }
 }"
 `;

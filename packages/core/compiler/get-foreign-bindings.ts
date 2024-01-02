@@ -80,10 +80,6 @@ function filterBindings(
       }
     }
   }
-  console.log({
-    referenced,
-    mutations,
-  });
   return { referenced, mutations };
 }
 

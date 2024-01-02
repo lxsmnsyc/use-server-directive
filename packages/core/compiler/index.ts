@@ -62,18 +62,32 @@ function getDescriptiveName(path: babel.NodePath): string {
   return 'anonymous';
 }
 
-const SKIP_MARKER = '@skip use-server-directive';
+function cleanServerBlockDirectives(
+  ctx: StateContext,
+  path: babel.NodePath<t.BlockStatement>,
+): void {
+  path.node.directives = path.node.directives.filter(
+    value => value.value.value !== ctx.options.directive,
+  );
+}
 
-function shouldSkip(path: babel.NodePath<t.BlockStatement>): boolean {
-  const comments = path.node.leadingComments;
-  if (comments) {
-    for (let i = 0, len = comments.length; i < len; i++) {
-      if (comments[i].value === SKIP_MARKER) {
-        return true;
+function cleanServerBlockFauxDirectives(
+  ctx: StateContext,
+  path: babel.NodePath<t.BlockStatement>,
+): void {
+  const body = path.get('body');
+  for (let i = 0, len = body.length; i < len; i++) {
+    const statement = body[i];
+    if (
+      statement.node.type === 'ExpressionStatement' &&
+      statement.node.expression.type === 'StringLiteral'
+    ) {
+      if (statement.node.expression.value === ctx.options.directive) {
+        statement.remove();
+        return;
       }
     }
   }
-  return false;
 }
 
 function getServerBlockModeFromDirectives(
@@ -113,9 +127,6 @@ function isValidServerBlock(
   ctx: StateContext,
   path: babel.NodePath<t.BlockStatement>,
 ): boolean {
-  if (shouldSkip(path)) {
-    return false;
-  }
   const parent = path.getFunctionParent();
   if (parent && !parent.node.async) {
     return false;
@@ -136,15 +147,6 @@ function getRootStatementPath(path: babel.NodePath): babel.NodePath {
     current = next;
   }
   return path;
-}
-
-function convertServerBlock(node: t.BlockStatement): t.BlockStatement {
-  return t.addComment(
-    t.blockStatement(node.body, node.directives),
-    'leading',
-    SKIP_MARKER,
-    false,
-  );
 }
 
 // These are internal code for the control flow of the server block
@@ -266,7 +268,7 @@ function transformHalting(
 
   const statements: t.Statement[] = [
     t.tryStatement(
-      convertServerBlock(t.blockStatement(path.node.body)),
+      t.blockStatement(path.node.body),
       t.catchClause(
         error,
         t.blockStatement([t.returnStatement(t.arrayExpression(throwResult))]),
@@ -565,6 +567,8 @@ function transformBlock(
   path: babel.NodePath<t.BlockStatement>,
 ): void {
   if (isValidServerBlock(ctx, path)) {
+    cleanServerBlockDirectives(ctx, path);
+    cleanServerBlockFauxDirectives(ctx, path);
     transformServerBlock(ctx, path);
   }
 }

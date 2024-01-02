@@ -14,7 +14,10 @@ exports[`ForInStatement > client > should skip top-level values for scope 1`] = 
 const value = 'foo bar';
 const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
 for (const key in items) {
-  const [_type, _result] = await _server();
+  const [_type, _result, _mutations] = await _server();
+  if (_type === 4) {
+    throw _result;
+  }
 }"
 `;
 
@@ -22,9 +25,11 @@ exports[`ForInStatement > client > should transform break statements 1`] = `
 "import { $$server as _$$server } from "use-server-directive/client";
 const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
 for (const key in items) {
-  const [_type, _result] = await _server();
+  const [_type, _result, _mutations] = await _server();
   if (_type === 0) {
     break;
+  } else if (_type === 4) {
+    throw _result;
   }
 }"
 `;
@@ -33,9 +38,11 @@ exports[`ForInStatement > client > should transform continue statements 1`] = `
 "import { $$server as _$$server } from "use-server-directive/client";
 const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
 for (const key in items) {
-  const [_type, _result] = await _server();
+  const [_type, _result, _mutations] = await _server();
   if (_type === 1) {
     continue;
+  } else if (_type === 4) {
+    throw _result;
   }
 }"
 `;
@@ -44,11 +51,13 @@ exports[`ForInStatement > client > should transform labeled break statements 1`]
 "import { $$server as _$$server } from "use-server-directive/client";
 const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
 foo: for (const key in items) {
-  const [_type, _result] = await _server();
+  const [_type, _result, _mutations] = await _server();
   if (_type === 0) {
     if (_result === "foo") {
       break foo;
     }
+  } else if (_type === 4) {
+    throw _result;
   }
 }"
 `;
@@ -57,11 +66,13 @@ exports[`ForInStatement > client > should transform labeled continue statements 
 "import { $$server as _$$server } from "use-server-directive/client";
 const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
 foo: for (const key in items) {
-  const [_type, _result] = await _server();
+  const [_type, _result, _mutations] = await _server();
   if (_type === 1) {
     if (_result === "foo") {
       continue foo;
     }
+  } else if (_type === 4) {
+    throw _result;
   }
 }"
 `;
@@ -70,7 +81,10 @@ exports[`ForInStatement > client > should transform valid server for-in statemen
 "import { $$server as _$$server } from "use-server-directive/client";
 const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
 for (const key in items) {
-  const [_type, _result] = await _server();
+  const [_type, _result, _mutations] = await _server();
+  if (_type === 4) {
+    throw _result;
+  }
 }"
 `;
 
@@ -80,7 +94,10 @@ const _server = _$$server("/__server/bb5fd6ee-example-0-foo");
 async function foo() {
   const value = 'foo bar';
   for (const key in items) {
-    const [_type, _result] = await _server(value);
+    const [_type, _result, _mutations] = await _server();
+    if (_type === 4) {
+      throw _result;
+    }
   }
 }"
 `;
@@ -97,123 +114,161 @@ exports[`ForInStatement > server > should skip server for-in statements in non-a
 exports[`ForInStatement > server > should skip top-level values for scope 1`] = `
 "import { $$server as _$$server } from "use-server-directive/server";
 const value = 'foo bar';
-const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
-  'use server';
-  await doStuff(value);
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () {
+  try {
+    await doStuff(value);
+  } catch (_error) {
+    return [4, _error];
+  }
   return [3];
 });
 for (const key in items) {
-  const [_type, _result] = await _server();
+  const [_type, _result, _mutations] = await _server();
+  if (_type === 4) {
+    throw _result;
+  }
 }"
 `;
 
 exports[`ForInStatement > server > should transform break statements 1`] = `
 "import { $$server as _$$server } from "use-server-directive/server";
-const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
-  'use server';
-  if (cond()) {
-    await doStuff(value);
-  } else {
-    return [0];
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () {
+  try {
+    if (cond()) {
+      await doStuff(value);
+    } else {
+      return [0, null];
+    }
+    await doMoreStuff();
+  } catch (_error) {
+    return [4, _error];
   }
-  await doMoreStuff();
   return [3];
 });
 for (const key in items) {
-  const [_type, _result] = await _server();
+  const [_type, _result, _mutations] = await _server();
   if (_type === 0) {
     break;
+  } else if (_type === 4) {
+    throw _result;
   }
 }"
 `;
 
 exports[`ForInStatement > server > should transform continue statements 1`] = `
 "import { $$server as _$$server } from "use-server-directive/server";
-const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
-  'use server';
-  if (cond()) {
-    await doStuff(value);
-  } else {
-    return [1];
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () {
+  try {
+    if (cond()) {
+      await doStuff(value);
+    } else {
+      return [1, null];
+    }
+    await doMoreStuff();
+  } catch (_error) {
+    return [4, _error];
   }
-  await doMoreStuff();
   return [3];
 });
 for (const key in items) {
-  const [_type, _result] = await _server();
+  const [_type, _result, _mutations] = await _server();
   if (_type === 1) {
     continue;
+  } else if (_type === 4) {
+    throw _result;
   }
 }"
 `;
 
 exports[`ForInStatement > server > should transform labeled break statements 1`] = `
 "import { $$server as _$$server } from "use-server-directive/server";
-const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
-  'use server';
-  if (cond()) {
-    await doStuff(value);
-  } else {
-    return [0, "foo"];
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () {
+  try {
+    if (cond()) {
+      await doStuff(value);
+    } else {
+      return [0, "foo"];
+    }
+    await doMoreStuff();
+  } catch (_error) {
+    return [4, _error];
   }
-  await doMoreStuff();
   return [3];
 });
 foo: for (const key in items) {
-  const [_type, _result] = await _server();
+  const [_type, _result, _mutations] = await _server();
   if (_type === 0) {
     if (_result === "foo") {
       break foo;
     }
+  } else if (_type === 4) {
+    throw _result;
   }
 }"
 `;
 
 exports[`ForInStatement > server > should transform labeled continue statements 1`] = `
 "import { $$server as _$$server } from "use-server-directive/server";
-const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
-  'use server';
-  if (cond()) {
-    await doStuff(value);
-  } else {
-    return [1, "foo"];
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () {
+  try {
+    if (cond()) {
+      await doStuff(value);
+    } else {
+      return [1, "foo"];
+    }
+    await doMoreStuff();
+  } catch (_error) {
+    return [4, _error];
   }
-  await doMoreStuff();
   return [3];
 });
 foo: for (const key in items) {
-  const [_type, _result] = await _server();
+  const [_type, _result, _mutations] = await _server();
   if (_type === 1) {
     if (_result === "foo") {
       continue foo;
     }
+  } else if (_type === 4) {
+    throw _result;
   }
 }"
 `;
 
 exports[`ForInStatement > server > should transform valid server for-in statements 1`] = `
 "import { $$server as _$$server } from "use-server-directive/server";
-const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () /*@skip use-server-directive*/{
-  'use server';
-  await doStuff();
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () {
+  try {
+    await doStuff();
+  } catch (_error) {
+    return [4, _error];
+  }
   return [3];
 });
 for (const key in items) {
-  const [_type, _result] = await _server();
+  const [_type, _result, _mutations] = await _server();
+  if (_type === 4) {
+    throw _result;
+  }
 }"
 `;
 
 exports[`ForInStatement > server > should transform valid server functions with scope 1`] = `
 "import { $$server as _$$server } from "use-server-directive/server";
-const _server = _$$server("/__server/bb5fd6ee-example-0-foo", async function (value) /*@skip use-server-directive*/{
-  'use server';
-  await doStuff(value);
+const _server = _$$server("/__server/bb5fd6ee-example-0-foo", async function () {
+  try {
+    await doStuff(value);
+  } catch (_error) {
+    return [4, _error];
+  }
   return [3];
 });
 async function foo() {
   const value = 'foo bar';
   for (const key in items) {
-    const [_type, _result] = await _server(value);
+    const [_type, _result, _mutations] = await _server();
+    if (_type === 4) {
+      throw _result;
+    }
   }
 }"
 `;
