@@ -64,7 +64,7 @@ if (someCond()) {
 }
 ```
 
-`use-server-directive` supports server blocks in almos all statements that supports it:
+`use-server-directive` supports server blocks in almost all statements that supports it:
 
 - `if-else`
 - `try-catch-finally`
