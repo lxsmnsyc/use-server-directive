@@ -157,8 +157,12 @@ const CONTINUE_KEY = t.numericLiteral(1);
 const RETURN_KEY = t.numericLiteral(2);
 // If the function has no explicit return
 const NO_HALT_KEY = t.numericLiteral(3);
+const THROW_KEY = t.numericLiteral(4);
 
-function transformHalting(path: babel.NodePath<t.BlockStatement>): {
+function transformHalting(
+  path: babel.NodePath<t.BlockStatement>,
+  mutations: t.Identifier[],
+): {
   breaks: string[];
   breakCount: number;
   continues: string[];
@@ -176,6 +180,10 @@ function transformHalting(path: babel.NodePath<t.BlockStatement>): {
   let hasReturn = false;
   let hasYield = false;
 
+  const applyMutations = mutations.length
+    ? path.scope.generateUidIdentifier('mutate')
+    : undefined;
+
   // Transform the control flow statements
   path.traverse({
     BreakStatement(child) {
@@ -188,6 +196,11 @@ function transformHalting(path: babel.NodePath<t.BlockStatement>): {
           const targetName = child.node.label.name;
           breaks.push(targetName);
           replacement.push(t.stringLiteral(targetName));
+        } else {
+          replacement.push(t.nullLiteral());
+        }
+        if (applyMutations) {
+          replacement.push(t.callExpression(applyMutations, []));
         }
         child.replaceWith(t.returnStatement(t.arrayExpression(replacement)));
         child.skip();
@@ -203,6 +216,11 @@ function transformHalting(path: babel.NodePath<t.BlockStatement>): {
           const targetName = child.node.label.name;
           continues.push(targetName);
           replacement.push(t.stringLiteral(targetName));
+        } else {
+          replacement.push(t.nullLiteral());
+        }
+        if (applyMutations) {
+          replacement.push(t.callExpression(applyMutations, []));
         }
         child.replaceWith(t.returnStatement(t.arrayExpression(replacement)));
         child.skip();
@@ -213,11 +231,16 @@ function transformHalting(path: babel.NodePath<t.BlockStatement>): {
         child.scope.getFunctionParent() || child.scope.getProgramParent();
       if (parent === target) {
         hasReturn = true;
-        const result: t.Expression[] = [RETURN_KEY];
+        const replacement: t.Expression[] = [RETURN_KEY];
         if (child.node.argument) {
-          result.push(child.node.argument);
+          replacement.push(child.node.argument);
+        } else {
+          replacement.push(t.nullLiteral());
         }
-        child.replaceWith(t.returnStatement(t.arrayExpression(result)));
+        if (applyMutations) {
+          replacement.push(t.callExpression(applyMutations, []));
+        }
+        child.replaceWith(t.returnStatement(t.arrayExpression(replacement)));
         child.skip();
       }
     },
@@ -230,8 +253,45 @@ function transformHalting(path: babel.NodePath<t.BlockStatement>): {
     },
   });
 
-  path.node.body.push(t.returnStatement(t.arrayExpression([NO_HALT_KEY])));
+  const error = path.scope.generateUidIdentifier('error');
 
+  const throwResult: t.Expression[] = [THROW_KEY, error];
+  const haltResult: t.Expression[] = [NO_HALT_KEY];
+
+  if (applyMutations) {
+    throwResult.push(t.callExpression(applyMutations, []));
+    haltResult.push(t.nullLiteral());
+    haltResult.push(t.callExpression(applyMutations, []));
+  }
+
+  const statements: t.Statement[] = [
+    t.tryStatement(
+      convertServerBlock(t.blockStatement(path.node.body)),
+      t.catchClause(
+        error,
+        t.blockStatement([t.returnStatement(t.arrayExpression(throwResult))]),
+      ),
+    ),
+    t.returnStatement(t.arrayExpression(haltResult)),
+  ];
+
+  if (applyMutations) {
+    statements.unshift(
+      t.variableDeclaration('const', [
+        t.variableDeclarator(
+          applyMutations,
+          t.arrowFunctionExpression(
+            [],
+            t.objectExpression(
+              mutations.map(item => t.objectProperty(item, item, false, true)),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  path.node.body = statements;
   return { breaks, continues, hasReturn, hasYield, breakCount, continueCount };
 }
 
@@ -246,8 +306,8 @@ function getBreakCheck(
   returnResult: t.Identifier,
   breakCount: number,
   breaks: string[],
-  check: t.Statement | undefined,
-): t.Statement | undefined {
+  check: t.Statement,
+): t.Statement {
   let current: t.Statement | undefined;
   if (breakCount !== breaks.length) {
     current = t.blockStatement([t.breakStatement()]);
@@ -283,8 +343,8 @@ function getContinueCheck(
   returnResult: t.Identifier,
   continueCount: number,
   continues: string[],
-  check: t.Statement | undefined,
-): t.Statement | undefined {
+  check: t.Statement,
+): t.Statement {
   let current: t.Statement | undefined;
   if (continueCount !== continues.length) {
     current = t.blockStatement([t.continueStatement()]);
@@ -313,10 +373,10 @@ function getGeneratorReplacementForServerBlock(
   path: babel.NodePath<t.BlockStatement>,
   returnType: t.Identifier,
   returnResult: t.Identifier,
+  returnMutations: t.Identifier,
   registerID: t.Identifier,
   cloneArgs: t.Identifier[],
-  check: t.Statement | undefined,
-): t.BlockStatement {
+): t.Statement[] {
   const iterator = path.scope.generateUidIdentifier('iterator');
   const step = path.scope.generateUidIdentifier('step');
   const replacement: t.Statement[] = [
@@ -324,6 +384,7 @@ function getGeneratorReplacementForServerBlock(
       // Generate variables
       t.variableDeclarator(returnType),
       t.variableDeclarator(returnResult),
+      t.variableDeclarator(returnMutations),
       // First, get the iterator by calling the generator
       t.variableDeclarator(
         iterator,
@@ -353,7 +414,7 @@ function getGeneratorReplacementForServerBlock(
               // Assign the value to the type and result
               t.assignmentExpression(
                 '=',
-                t.arrayPattern([returnType, returnResult]),
+                t.arrayPattern([returnType, returnResult, returnMutations]),
                 t.memberExpression(step, t.identifier('value')),
               ),
             ),
@@ -372,10 +433,7 @@ function getGeneratorReplacementForServerBlock(
       ]),
     ),
   ];
-  if (check) {
-    replacement.push(check);
-  }
-  return t.blockStatement(replacement);
+  return replacement;
 }
 
 function transformServerBlock(
@@ -383,9 +441,9 @@ function transformServerBlock(
   path: babel.NodePath<t.BlockStatement>,
 ): void {
   // Get all bindings needed by the function
-  const cloneArgs: t.Identifier[] = getForeignBindings(path);
+  const { referenced, mutations } = getForeignBindings(path);
   // Transform all control statements
-  const halting = transformHalting(path);
+  const halting = transformHalting(path, mutations);
   // Create an ID
   let id = `${ctx.prefix}${ctx.count}`;
   if (ctx.options.env !== 'production') {
@@ -401,8 +459,8 @@ function transformServerBlock(
     args.push(
       t.functionExpression(
         undefined,
-        cloneArgs,
-        convertServerBlock(path.node),
+        referenced,
+        path.node,
         halting.hasYield,
         true,
       ),
@@ -431,13 +489,18 @@ function transformServerBlock(
   // declare the type and result based from transformHalting
   const returnType = path.scope.generateUidIdentifier('type');
   const returnResult = path.scope.generateUidIdentifier('result');
-  let check: t.Statement | undefined;
+  const returnMutations = path.scope.generateUidIdentifier('mutations');
+  let check: t.Statement = t.ifStatement(
+    t.binaryExpression('===', returnType, THROW_KEY),
+    t.blockStatement([t.throwStatement(returnResult)]),
+  );
   // If the block has a return, we need to make sure that the
   // replacement does too.
   if (halting.hasReturn) {
     check = t.ifStatement(
       t.binaryExpression('===', returnType, RETURN_KEY),
       t.blockStatement([t.returnStatement(returnResult)]),
+      check,
     );
   }
   // If the block has a break, we also do it.
@@ -461,31 +524,40 @@ function transformServerBlock(
     );
   }
   // If the server block happens to be declared in a generator
-  if (halting.hasYield) {
-    path.replaceWith(
-      getGeneratorReplacementForServerBlock(
+  const replacement: t.Statement[] = halting.hasYield
+    ? getGeneratorReplacementForServerBlock(
         path,
         returnType,
         returnResult,
+        returnMutations,
         registerID,
-        cloneArgs,
-        check,
+        referenced,
+      )
+    : [
+        t.variableDeclaration('const', [
+          t.variableDeclarator(
+            t.arrayPattern([returnType, returnResult, returnMutations]),
+            t.awaitExpression(t.callExpression(registerID, referenced)),
+          ),
+        ]),
+      ];
+  if (mutations.length) {
+    replacement.push(
+      t.expressionStatement(
+        t.assignmentExpression(
+          '=',
+          t.objectPattern(
+            mutations.map(item => t.objectProperty(item, item, false, true)),
+          ),
+          returnMutations,
+        ),
       ),
     );
-  } else {
-    const replacement: t.Statement[] = [
-      t.variableDeclaration('const', [
-        t.variableDeclarator(
-          t.arrayPattern([returnType, returnResult]),
-          t.awaitExpression(t.callExpression(registerID, cloneArgs)),
-        ),
-      ]),
-    ];
-    if (check) {
-      replacement.push(check);
-    }
-    path.replaceWith(t.blockStatement(replacement));
   }
+  if (check) {
+    replacement.push(check);
+  }
+  path.replaceWith(t.blockStatement(replacement));
 }
 
 function transformBlock(
