@@ -1,4 +1,3 @@
-
 async function foo() {
   const prefix = 'Message: ';
 
