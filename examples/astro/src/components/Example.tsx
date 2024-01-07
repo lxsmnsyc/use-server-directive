@@ -1,10 +1,14 @@
 import type { JSX } from 'solid-js';
 import {
-  createResource, createSignal, onMount, Show, Suspense,
+  createResource,
+  createSignal,
+  onMount,
+  Show,
+  Suspense,
 } from 'solid-js';
 
 async function sleep<T>(value: T, ms: number): Promise<T> {
-  return new Promise<T>((res) => {
+  return new Promise<T>(res => {
     setTimeout(res, ms, value);
   });
 }
@@ -16,11 +20,7 @@ function ClientOnly(props: { children: JSX.Element }): JSX.Element {
     setFlag(true);
   });
 
-  return (
-    <Show when={flag()}>
-      {props.children}
-    </Show>
-  );
+  return <Show when={flag()}>{props.children}</Show>;
 }
 
 function Inner(): JSX.Element {
@@ -28,6 +28,7 @@ function Inner(): JSX.Element {
 
   const prefix = 'Server Count';
 
+  // biome-ignore lint/nursery/useAwait: <explanation>
   async function serverCount(value: number) {
     'use server';
 
@@ -39,10 +40,10 @@ function Inner(): JSX.Element {
     };
   }
 
-  const [data] = createResource(state, async (value) => serverCount(value));
+  const [data] = createResource(state, async value => serverCount(value));
 
   function increment(): void {
-    setState((c) => c + 1);
+    setState(c => c + 1);
   }
 
   return (

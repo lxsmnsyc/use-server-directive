@@ -1,4 +1,5 @@
 import type * as babel from '@babel/core';
+import type { BindingKind } from '@babel/traverse';
 import * as t from '@babel/types';
 
 function isForeignBinding(
@@ -13,7 +14,8 @@ function isForeignBinding(
     return true;
   }
   if (current.scope.hasOwnBinding(name)) {
-    return false;
+    const binding = current.scope.getBinding(name);
+    return !!binding && binding.kind === 'param';
   }
   if (current.parentPath) {
     return isForeignBinding(source, current.parentPath, name);
@@ -32,71 +34,67 @@ function isInTypescript(path: babel.NodePath): boolean {
   return false;
 }
 
-export default function getForeignBindings(
-  path: babel.NodePath,
-): t.Identifier[] {
-  const identifiers = new Set<string>();
-  path.traverse({
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: side-effects
-    Expression(p) {
-      // Check identifiers that aren't in a TS expression
-      if (
-        t.isIdentifier(p.node) &&
-        !isInTypescript(p) &&
-        isForeignBinding(path, p, p.node.name)
-      ) {
-        identifiers.add(p.node.name);
-      }
-      // for the JSX, only use JSXMemberExpression's object
-      // as a foreign binding
-      if (t.isJSXElement(p.node)) {
-        if (t.isJSXMemberExpression(p.node.openingElement.name)) {
-          let base: t.JSXMemberExpression | t.JSXIdentifier =
-            p.node.openingElement.name;
-          while (t.isJSXMemberExpression(base)) {
-            base = base.object;
-          }
-          if (isForeignBinding(path, p, base.name)) {
-            identifiers.add(base.name);
-          }
-        }
-        if (t.isJSXIdentifier(p.node.openingElement.name)) {
-          const base = p.node.openingElement.name;
-          if (isForeignBinding(path, p, base.name)) {
-            identifiers.add(base.name);
-          }
-        }
-      }
-    },
-  });
+interface ForeignBindings {
+  referenced: t.Identifier[];
+  mutations: t.Identifier[];
+}
 
-  const result: t.Identifier[] = [];
+function isMutation(kind: BindingKind): boolean {
+  switch (kind) {
+    case 'let':
+    case 'var':
+    case 'param':
+      return true;
+    case 'const':
+    case 'hoisted':
+    case 'local':
+    case 'module':
+    case 'unknown':
+      return false;
+  }
+}
+
+function filterBindings(
+  path: babel.NodePath,
+  identifiers: Set<string>,
+): ForeignBindings {
+  const referenced: t.Identifier[] = [];
+  const mutations: t.Identifier[] = [];
   for (const identifier of identifiers) {
     const binding = path.scope.getBinding(identifier);
 
     if (binding) {
-      switch (binding.kind) {
-        case 'const':
-        case 'let':
-        case 'var':
-        case 'param':
-        case 'local':
-        case 'hoisted': {
-          let blockParent = binding.path.scope.getBlockParent();
-          const programParent = binding.path.scope.getProgramParent();
+      let blockParent = binding.path.scope.getBlockParent();
+      const programParent = binding.path.scope.getProgramParent();
 
-          if (blockParent.path === binding.path) {
-            blockParent = blockParent.parent;
-          }
+      if (blockParent.path === binding.path) {
+        blockParent = blockParent.parent;
+      }
 
-          // We don't need top-level declarations
-          if (blockParent !== programParent) {
-            result.push(t.identifier(identifier));
-          }
-          break;
+      // We don't need top-level declarations
+      if (blockParent !== programParent) {
+        referenced.push(t.identifier(identifier));
+        if (isMutation(binding.kind)) {
+          mutations.push(t.identifier(identifier));
         }
       }
     }
   }
-  return result;
+  return { referenced, mutations };
+}
+
+export default function getForeignBindings(
+  path: babel.NodePath,
+): ForeignBindings {
+  const identifiers = new Set<string>();
+  path.traverse({
+    ReferencedIdentifier(p) {
+      // Check identifiers that aren't in a TS expression
+      if (!isInTypescript(p) && isForeignBinding(path, p, p.node.name)) {
+        identifiers.add(p.node.name);
+      }
+    },
+  });
+
+  return filterBindings(path, identifiers);
 }

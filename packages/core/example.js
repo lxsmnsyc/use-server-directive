@@ -1,16 +1,9 @@
 import { compile } from './dist/esm/development/compiler.mjs';
-
-const code = `
-const example = async function () {
-  "use server";
-
-  return 'test';
-}
-`;
+import fs from 'fs/promises';
 
 console.log(
   (
-    await compile('example.ts', code, {
+    await compile('input.ts', await fs.readFile('./input.js', 'utf-8'), {
       directive: 'use server',
       mode: 'server',
     })

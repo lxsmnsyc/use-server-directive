@@ -1,9 +1,19 @@
 {
-  "exclude": ["node_modules"],
-  "include": ["compiler", "client", "server", "shared"],
+  "exclude": [
+    "node_modules"
+  ],
+  "include": [
+    "compiler",
+    "client",
+    "server",
+    "shared"
+  ],
   "compilerOptions": {
     "module": "ESNext",
-    "lib": ["ESNext", "DOM"],
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
     "importHelpers": true,
     "declaration": true,
     "sourceMap": true,
