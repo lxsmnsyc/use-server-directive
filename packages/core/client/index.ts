@@ -15,17 +15,8 @@ import {
 } from 'seroval-plugins/web';
 import {
   USE_SERVER_DIRECTIVE_INDEX_HEADER,
-  type FunctionBody,
   USE_SERVER_DIRECTIVE_ID_HEADER,
 } from '../shared/utils';
-
-interface HandlerRegistrationResult {
-  id: string;
-}
-
-export function $$server(id: string): HandlerRegistrationResult {
-  return { id };
-}
 
 export type MaybePromise<T> = T | Promise<T>;
 
@@ -113,7 +104,9 @@ async function deserializeResponse<T>(
   throw new Error(`function "${id}" threw an unhandled server-side error.`);
 }
 
-async function serializeFunctionBody(body: FunctionBody): Promise<string> {
+async function serializeFunctionBody<T extends unknown[]>(
+  body: T,
+): Promise<string> {
   return JSON.stringify(
     await toJSONAsync(body, {
       plugins: [
@@ -138,8 +131,7 @@ let INSTANCE = 0;
 
 async function handler<T extends unknown[], R>(
   id: string,
-  scope: () => unknown[],
-  ...args: T
+  args: T,
 ): Promise<R> {
   return deserializeResponse(
     id,
@@ -149,21 +141,13 @@ async function handler<T extends unknown[], R>(
         [USE_SERVER_DIRECTIVE_ID_HEADER]: id,
       },
       method: 'POST',
-      body: await serializeFunctionBody({
-        scope: scope(),
-        args,
-      }),
+      body: await serializeFunctionBody(args),
     }),
   );
 }
 
-export function $$clone(
-  { id }: HandlerRegistrationResult,
-  scope: () => unknown[],
-): unknown {
-  return Object.assign(handler.bind(null, id, scope), {
-    toString() {
-      return id;
-    },
-  });
+export function $$server<T extends unknown[], R>(
+  id: string,
+): (...args: T) => Promise<R> {
+  return (...args: T): Promise<R> => handler(id, args);
 }

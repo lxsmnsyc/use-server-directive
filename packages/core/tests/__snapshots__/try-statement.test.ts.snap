@@ -1,0 +1,130 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`TryStatement > client > should skip server try statements in non-async functions 1`] = `
+"const example = () => {
+  try {
+    'use server';
+    doStuff();
+  } catch (err) {
+    report(err);
+  }
+};"
+`;
+
+exports[`TryStatement > client > should skip top-level values for scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const value = 'foo bar';
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+try {
+  const [_type, _result, _mutations] = await _server();
+  if (_type === 4) {
+    throw _result;
+  }
+} catch (err) {
+  report(err);
+}"
+`;
+
+exports[`TryStatement > client > should transform valid server functions with scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-foo");
+async function foo() {
+  const value = 'foo bar';
+  try {
+    const [_type, _result, _mutations] = await _server(value);
+    if (_type === 4) {
+      throw _result;
+    }
+  } catch (err) {
+    report(err);
+  }
+}"
+`;
+
+exports[`TryStatement > client > should transform valid server try statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/client";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous");
+try {
+  const [_type, _result, _mutations] = await _server();
+  if (_type === 4) {
+    throw _result;
+  }
+} catch (err) {
+  report(err);
+}"
+`;
+
+exports[`TryStatement > server > should skip server try statements in non-async functions 1`] = `
+"const example = () => {
+  try {
+    'use server';
+    doStuff();
+  } catch (err) {
+    report(err);
+  }
+};"
+`;
+
+exports[`TryStatement > server > should skip top-level values for scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const value = 'foo bar';
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () {
+  try {
+    await doStuff(value);
+  } catch (_error) {
+    return [4, _error];
+  }
+  return [3];
+});
+try {
+  const [_type, _result, _mutations] = await _server();
+  if (_type === 4) {
+    throw _result;
+  }
+} catch (err) {
+  report(err);
+}"
+`;
+
+exports[`TryStatement > server > should transform valid server functions with scope 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-foo", async function (value) {
+  try {
+    await doStuff(value);
+  } catch (_error) {
+    return [4, _error];
+  }
+  return [3];
+});
+async function foo() {
+  const value = 'foo bar';
+  try {
+    const [_type, _result, _mutations] = await _server(value);
+    if (_type === 4) {
+      throw _result;
+    }
+  } catch (err) {
+    report(err);
+  }
+}"
+`;
+
+exports[`TryStatement > server > should transform valid server try statements 1`] = `
+"import { $$server as _$$server } from "use-server-directive/server";
+const _server = _$$server("/__server/bb5fd6ee-example-0-anonymous", async function () {
+  try {
+    await doStuff();
+  } catch (_error) {
+    return [4, _error];
+  }
+  return [3];
+});
+try {
+  const [_type, _result, _mutations] = await _server();
+  if (_type === 4) {
+    throw _result;
+  }
+} catch (err) {
+  report(err);
+}"
+`;
