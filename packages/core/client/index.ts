@@ -40,6 +40,76 @@ async function serverHandler(id: string, init: RequestInit): Promise<Response> {
 
 declare const $R: Record<string, unknown>;
 
+class SerovalChunkReader {
+  private reader: ReadableStreamDefaultReader<Uint8Array>;
+  private buffer = '';
+  private done = false;
+
+  constructor(stream: ReadableStream<Uint8Array>) {
+    this.reader = stream.getReader();
+  }
+
+  async readChunk(): Promise<void> {
+    // if there's no chunk, read again
+    const chunk = await this.reader.read();
+    if (chunk.done) {
+      this.done = true;
+    } else {
+      // repopulate the buffer
+      this.buffer += new TextDecoder().decode(chunk.value);
+    }
+  }
+
+  async next(): Promise<IteratorResult<string>> {
+    // Check if the buffer is empty
+    if (this.buffer === '') {
+      // if we are already done...
+      if (this.done) {
+        return {
+          done: true,
+          value: undefined,
+        };
+      }
+      // Otherwise, read a new chunk
+      await this.readChunk();
+      return await this.next();
+    }
+    // Read the "byte header"
+    // The byte header tells us how big the expected data is
+    // so we know how much data we should wait before we
+    // deserialize the data
+    const bytes = Number.parseInt(this.buffer.substring(1, 11), 16); // ;0x00000000;
+    // Check if the buffer has enough bytes to be parsed
+    while (bytes > this.buffer.length - 12) {
+      // If it's not enough, and the reader is done
+      // then the chunk is invalid.
+      if (this.done) {
+        throw new Error('Malformed server function stream.');
+      }
+      // Otherwise, we read more chunks
+      await this.readChunk();
+    }
+    // Extract the exact chunk as defined by the byte header
+    const partial = this.buffer.substring(12, 12 + bytes);
+    // The rest goes to the buffer
+    this.buffer = this.buffer.substring(12 + bytes);
+    // Deserialize the chunk
+    return {
+      done: false,
+      value: deserialize(partial),
+    };
+  }
+
+  async drain(): Promise<void> {
+    while (true) {
+      const result = await this.next();
+      if (result.done) {
+        break;
+      }
+    }
+  }
+}
+
 async function deserializeResponse<T>(
   id: string,
   response: Response,
@@ -52,54 +122,26 @@ async function deserializeResponse<T>(
   if (!response.body) {
     throw new Error('missing body');
   }
-  const reader = response.body.getReader();
+  const reader = new SerovalChunkReader(response.body);
 
-  async function pop(): Promise<void> {
-    const result = await reader.read();
-    if (!result.done) {
-      const serialized = new TextDecoder().decode(result.value);
-      const splits = serialized.split('\n');
-      for (const split of splits) {
-        if (split !== '') {
-          deserialize(split);
-        }
-      }
-      await pop();
-    }
-  }
+  const result = await reader.next();
 
-  const result = await reader.read();
-  if (result.done) {
-    throw new Error('Unexpected end of body');
+  if (!result.done) {
+    reader.drain().then(
+      () => {
+        delete $R[instance];
+      },
+      () => {
+        // no-op
+      },
+    );
   }
-  const serialized = new TextDecoder().decode(result.value);
-  let pending = true;
-  let revived: unknown;
-  const splits = serialized.split('\n');
-  for (const split of splits) {
-    if (split !== '') {
-      const current = deserialize(split);
-      if (pending) {
-        revived = current;
-        pending = false;
-      }
-    }
-  }
-
-  pop().then(
-    () => {
-      delete $R[instance];
-    },
-    () => {
-      // no-op
-    },
-  );
 
   if (response.ok) {
-    return revived as T;
+    return result.value as T;
   }
   if (import.meta.env.DEV) {
-    throw revived;
+    throw result.value;
   }
   throw new Error(`function "${id}" threw an unhandled server-side error.`);
 }

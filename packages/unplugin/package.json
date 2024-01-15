@@ -15,28 +15,22 @@
       "types": "./dist/types/index.d.ts"
     }
   },
-  "files": [
-    "dist",
-    "src"
-  ],
+  "files": ["dist", "src"],
   "engines": {
     "node": ">=10"
   },
   "license": "MIT",
-  "keywords": [
-    "pridepack",
-    "babel"
-  ],
+  "keywords": ["pridepack", "babel"],
   "name": "unplugin-use-server-directive",
   "devDependencies": {
-    "@types/node": "^20.10.6",
-    "pridepack": "2.5.1",
+    "@types/node": "^20.11.2",
+    "pridepack": "2.6.0",
     "tslib": "^2.6.2",
     "typescript": "^5.3.3",
     "use-server-directive": "0.3.0"
   },
   "peerDependencies": {
-    "use-server-directive": ">=0.0.0"
+    "use-server-directive": "^0.3.0"
   },
   "dependencies": {
     "@rollup/pluginutils": "^5.1.0",
@@ -46,7 +40,6 @@
     "prepublish": "pridepack clean && pridepack build",
     "build": "pridepack build",
     "type-check": "pridepack check",
-    "lint": "pridepack lint",
     "clean": "pridepack clean",
     "watch": "pridepack watch"
   },
