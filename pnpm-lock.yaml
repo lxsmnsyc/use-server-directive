@@ -36,7 +36,7 @@ importers:
         specifier: ^3.3.3
         version: 3.3.5
       use-server-directive:
-        specifier: 0.3.0
+        specifier: 0.3.1
         version: link:../../packages/core
     devDependencies:
       astro:
@@ -52,13 +52,13 @@ importers:
         specifier: ^5.3.2
         version: 5.3.2
       unplugin-use-server-directive:
-        specifier: 0.3.0
+        specifier: 0.3.1
         version: link:../../packages/unplugin
 
   examples/sveltekit:
     dependencies:
       use-server-directive:
-        specifier: 0.3.0
+        specifier: 0.3.1
         version: link:../../packages/core
     devDependencies:
       '@sveltejs/adapter-auto':
@@ -83,7 +83,7 @@ importers:
         specifier: ^5.3.2
         version: 5.3.2
       unplugin-use-server-directive:
-        specifier: 0.3.0
+        specifier: 0.3.1
         version: link:../../packages/unplugin
       vite:
         specifier: ^4.4.11
@@ -157,7 +157,7 @@ importers:
         specifier: ^5.3.3
         version: 5.3.3
       use-server-directive:
-        specifier: 0.3.0
+        specifier: 0.3.1
         version: link:../core
 
 packages:
