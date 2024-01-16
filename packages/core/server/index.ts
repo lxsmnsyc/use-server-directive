@@ -31,6 +31,13 @@ type HandlerRegistration = [
 
 const REGISTRATIONS = new Map<string, HandlerRegistration>();
 
+function createChunk(data: string): Uint8Array {
+  const bytes = data.length;
+  const baseHex = bytes.toString(16);
+  const totalHex = '00000000'.substring(0, 8 - baseHex.length) + baseHex; // 32-bit
+  return new TextEncoder().encode(`;0x${totalHex};${data}`);
+}
+
 function serializeToStream<T>(instance: string, value: T): ReadableStream {
   return new ReadableStream({
     start(controller): void {
@@ -49,10 +56,11 @@ function serializeToStream<T>(instance: string, value: T): ReadableStream {
           URLPlugin,
         ],
         onSerialize(data, initial) {
-          const result = initial
-            ? `(${getCrossReferenceHeader(instance)},${data})`
-            : data;
-          controller.enqueue(new TextEncoder().encode(`${result};\n`));
+          controller.enqueue(
+            createChunk(
+              initial ? `(${getCrossReferenceHeader(instance)},${data})` : data,
+            ),
+          );
         },
         onDone() {
           controller.close();
