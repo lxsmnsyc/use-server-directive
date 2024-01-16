@@ -2,17 +2,12 @@
   "name": "use-server-directive",
   "version": "0.3.1",
   "type": "module",
-  "files": [
-    "dist",
-    "src"
-  ],
+  "files": ["dist", "src"],
   "engines": {
     "node": ">=10"
   },
   "license": "MIT",
-  "keywords": [
-    "pridepack"
-  ],
+  "keywords": ["pridepack"],
   "devDependencies": {
     "@types/babel__core": "^7.20.5",
     "@types/babel__helper-module-imports": "^7.18.3",
@@ -35,7 +30,6 @@
     "prepublishOnly": "pridepack clean && pridepack build",
     "build": "pridepack build",
     "type-check": "pridepack check",
-    "lint": "pridepack lint",
     "clean": "pridepack clean",
     "watch": "pridepack watch",
     "start": "pridepack start",
@@ -58,15 +52,9 @@
   "private": false,
   "typesVersions": {
     "*": {
-      "compiler": [
-        "./dist/types/compiler/index.d.ts"
-      ],
-      "client": [
-        "./dist/types/client/index.d.ts"
-      ],
-      "server": [
-        "./dist/types/server/index.d.ts"
-      ]
+      "compiler": ["./dist/types/compiler/index.d.ts"],
+      "client": ["./dist/types/client/index.d.ts"],
+      "server": ["./dist/types/server/index.d.ts"]
     }
   },
   "exports": {
