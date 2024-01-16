@@ -1,6 +1,6 @@
 import * as babel from '@babel/core';
 import * as t from '@babel/types';
-import nodePath from 'path';
+import nodePath from 'node:path';
 import { addNamed } from '@babel/helper-module-imports';
 import assert from './assert';
 import getForeignBindings from './get-foreign-bindings';
@@ -39,10 +39,7 @@ function getImportIdentifier(
   return newID;
 }
 
-export function getDescriptiveName(
-  path: babel.NodePath,
-  defaultName: string,
-): string {
+function getDescriptiveName(path: babel.NodePath, defaultName: string): string {
   let current: babel.NodePath | null = path;
   while (current) {
     switch (current.node.type) {
