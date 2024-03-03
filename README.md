@@ -1,5 +1,7 @@
 # `use-server-directive`
 
+## `use-server-directive` is now part of [`dismante`](https://github.com/lxsmnsyc/dismantle)
+
 > Universal `use server` functions
 
 [![NPM](https://img.shields.io/npm/v/use-server-directive.svg)](https://www.npmjs.com/package/use-server-directive) [![JavaScript Style Guide](https://badgen.net/badge/code%20style/airbnb/ff5a5f?icon=airbnb)](https://github.com/airbnb/javascript)
