@@ -1,6 +1,6 @@
 # `use-server-directive`
 
-## `use-server-directive` is now part of [`dismante`](https://github.com/lxsmnsyc/dismantle)
+## ⚠️ `use-server-directive` is now part of [`dismantle`](https://github.com/lxsmnsyc/dismantle) ⚠️
 
 > Universal `use server` functions
 
